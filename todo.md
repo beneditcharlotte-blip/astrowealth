@@ -11,3 +11,9 @@
 - [x] Add tRPC procedure for LLM wealth report generation
 - [x] Write vitest tests for LLM endpoint
 - [x] Final testing and checkpoint
+- [x] Remove Chart Tab (星盘图) from result page
+- [x] Change grade display from "优良财星" to money level like "千万级"
+- [x] Redesign six-step analysis to plain language (no astrology jargon)
+- [x] Update LLM report to generate life-stage timeline advice
+- [x] Remove astrology terminology from overview report
+- [x] Test and checkpoint

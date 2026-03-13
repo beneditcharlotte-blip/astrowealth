@@ -170,28 +170,28 @@ export function assessWealth(chart: ChartData): WealthAssessment {
 
 const GRADE_INFO: Record<WealthGrade, { name: string; description: string; min: number; max: number }> = {
   A10: {
-    name: '卓越财星',
-    description: '核心财星庙旺，多重吉相位网络，飞入最佳宫位，事业与财富完美联动。财富潜力巨大，获取渠道多且顺畅，易得贵人助力，人生中有明显的财富跃升期。',
+    name: '十亿以上',
+    description: '你的星盘显示出极强的财富潜力。多重有利因素叠加，财富获取渠道多且顺畅，人生中有明显的财富跃升期，容易获得贵人助力和大额机遇。',
     min: 85, max: 100
   },
   A9: {
-    name: '上等财星',
-    description: '关键财星状态良好，有明显吉相位支撑，飞入较好宫位。财富基础优良，有较好的发展空间，关键时期把握机遇可实现跃升。',
+    name: '亿级',
+    description: '你的星盘展现出优秀的财富基础。关键因素状态良好，发展空间广阔，在关键时期把握机遇有望实现财富跃升。',
     min: 70, max: 84
   },
   A8: {
-    name: '优良财星',
-    description: '财星状态中上，吉凶并存但吉多于凶，宫位配置尚可。财富需通过个人努力和专业能力稳定积累，有不错的收入潜力。',
+    name: '千万级',
+    description: '你的星盘呈现出不错的财富潜力。通过个人努力和专业能力的持续提升，有望实现稳健的财富积累，收入增长空间可观。',
     min: 55, max: 69
   },
   A7: {
-    name: '稳健财星',
-    description: '财星状态中性，吉凶相位均衡。财富需通过持续努力和专业能力积累，面临特定领域的财务压力或波动，但整体稳定。',
+    name: '百万级',
+    description: '你的星盘显示财富需要通过持续努力来积累。过程中可能面临一些波动，但整体基础稳定，坚持正确方向终有回报。',
     min: 40, max: 54
   },
   A6: {
-    name: '潜力财星',
-    description: '财星状态偏弱或受挑战相位较多。财务之路需要付出更多努力克服障碍，重点在于管理风险、建立财务纪律，通过特定方向努力改善。',
+    name: '十万级',
+    description: '你的星盘提示财富之路需要更多耐心和策略。重点在于管理风险、建立良好的财务习惯，通过持续学习和成长来提升财富能力。',
     min: 0, max: 39
   }
 };
@@ -645,69 +645,69 @@ function analyzeStep6(
 
   // 分析优势
   if (step2.overallStrength === 'strong') {
-    strengths.push('核心财富征象星先天状态优秀，财富潜力起点高');
+    strengths.push('你天生具备很强的财富感知力，对赚钱机会的嵅觉比常人更敏锐');
   }
   if (step3.harmoniousAspects.length >= 3) {
-    strengths.push('多重吉相位构成财富网络，机遇渠道畅通');
+    strengths.push('你的财运流动性很好，赚钱的机会和渠道比较多，容易获得多方面的财务支持');
   }
   const excellentFlyIns = [step4.house2RulerFlyIn, step4.venusFlyIn, step4.jupiterFlyIn, step4.moonFlyIn]
     .filter(f => f.quality === 'excellent');
   if (excellentFlyIns.length > 0) {
-    strengths.push(`财星飞入优质宫位（${excellentFlyIns.map(f => `第${f.house}宫`).join('、')}），财富实现路径清晰`);
+    strengths.push('你的财富实现路径清晰，知道在哪个方向发力最容易获得回报');
   }
   if (step1.house2.planetsInHouse.some(p => ['Venus', 'Jupiter'].includes(p.name))) {
-    strengths.push('正财宫有吉星落入，个人财富基础扎实');
+    strengths.push('你的个人财富基础扎实，天生具备吸引财富的能力');
   }
 
   // 分析挑战
   if (step2.overallStrength === 'weak') {
-    challenges.push('财富征象星先天状态偏弱，需要更多后天努力');
+    challenges.push('财富积累可能需要比常人付出更多努力，但坚持就能看到效果');
   }
   if (step3.challengingAspects.length >= 3) {
-    challenges.push('较多挑战相位影响财富流动，需要克服障碍');
+    challenges.push('财务上可能会遇到一些阻力和波动，需要提前做好风险管理');
   }
   const challengingFlyIns = [step4.house2RulerFlyIn, step4.venusFlyIn, step4.jupiterFlyIn, step4.moonFlyIn]
     .filter(f => f.quality === 'challenging');
   if (challengingFlyIns.length > 0) {
-    challenges.push('部分财星飞入挑战宫位，财富积累过程需要更多耐心');
+    challenges.push('财富积累过程需要更多耐心，不宜急于求成');
   }
 
   // 建议
   if (step4.venusFlyIn.house === 10 || step4.jupiterFlyIn.house === 10) {
-    advice.push('事业是你的核心财富引擎，建议全力投入职业发展');
+    advice.push('事业是你最大的财富引擎，建议把主要精力放在职业发展上');
   }
   if (step4.venusFlyIn.house === 11 || step4.jupiterFlyIn.house === 11) {
-    advice.push('人脉和社交圈是你的财富助力，积极拓展高质量社交网络');
+    advice.push('人脉关系是你的财富加速器，多结交优质人脉、参与行业圈子');
   }
   if (step3.challengingAspects.some(a => a.aspect.planet1 === 'Saturn' || a.aspect.planet2 === 'Saturn')) {
-    advice.push('土星的挑战相位提示需要建立财务纪律和长期规划');
+    advice.push('建议建立严格的财务纪律和长期规划，避免冲动消费和高风险投资');
   }
-  advice.push('把握木星行运经过财富宫位的机遇期，积极行动');
+  advice.push('人生中会有几个明显的财务机遇窗口期，到时要果断行动');
   if (challenges.length > 0) {
-    advice.push('面对挑战相位，建议通过学习和成长来转化压力为动力');
+    advice.push('面对困难时不要气馊，持续学习和成长是突破财务瓶颈的关键');
   }
 
   // 如果没有明显优势/挑战，添加默认项
-  if (strengths.length === 0) strengths.push('财富格局整体均衡，具备稳定发展的基础');
-  if (challenges.length === 0) challenges.push('整体挑战较少，但仍需保持警觉和持续努力');
+  if (strengths.length === 0) strengths.push('你的财富基础整体均衡，具备稳定发展的条件');
+  if (challenges.length === 0) challenges.push('整体挑战较少，但仍需保持财务警觉和持续努力');
 
   // 综合总结
   let summary = '';
   switch (grade) {
     case 'A10':
-      summary = '你的星盘展现出卓越的财富格局。核心财星状态优秀，多重吉相位构成强大的财富网络，事业与财富深度联动。你天生具备出色的财富吸引力和增值能力，人生中有明显的财富跃升期。关键在于把握机遇、持续精进。';
+      summary = '你具备非常强的财富潜力。多重有利因素叠加，你天生对财富机会嵅觉敏锐，且容易获得贵人和资源的助力。人生中会有明显的财富跃升期，关键是把握住每一次重要机遇。';
       break;
     case 'A9':
-      summary = '你的星盘展现出上等的财富格局。关键财星状态良好，有明显的吉相位支撑。你具备很强的财富积累潜力，通过正确的方向和持续努力，有望实现显著的财富增长。关键时期的决策尤为重要。';
+      summary = '你的财富基础非常好，发展空间广阔。通过正确的方向和持续努力，你有很大机会实现财富的显著增长。关键时期的决策尤为重要，不要错过重要的转折点。';
       break;
     case 'A8':
-      summary = '你的星盘展现出优良的财富格局。财星状态中上，吉凶并存但整体偏向积极。通过专业能力的提升和正确的财富策略，你有望实现稳健的财富增长。建议发挥优势、规避风险。';
+      summary = '你具备不错的财富潜力。通过专业能力的持续提升和正确的理财策略，你有望实现稳健的财富增长。建议发挥自己的优势领域，同时注意规避不必要的风险。';
       break;
     case 'A7':
-      summary = '你的星盘展现出稳健的财富格局。财富需要通过持续的个人努力和专业积累来实现。虽然过程中会面临一些挑战，但整体财务基础稳定。建议注重技能提升和长期规划。';
+      summary = '你的财富需要通过持续努力来积累。过程中可能会遇到一些波动，但整体基础稳定。建议注重技能提升和长期规划，耐心经营终会看到回报。';
       break;
     case 'A6':
-      summary = '你的星盘提示财富之路需要更多的耐心和策略。虽然面临一些挑战，但每个星盘都有其独特的财富密码。建议重点关注风险管理、建立财务纪律，通过持续学习和成长来提升财富能力。';
+      summary = '你的财富之路需要更多耐心和策略。每个人都有属于自己的财富密码，关键是找到适合自己的方向。建议重点关注风险管理，建立良好的财务习惯，通过持续学习来提升财富能力。';
       break;
   }
 
