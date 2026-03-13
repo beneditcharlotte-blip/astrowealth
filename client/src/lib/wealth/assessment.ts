@@ -643,71 +643,118 @@ function analyzeStep6(
   const challenges: string[] = [];
   const advice: string[] = [];
 
-  // 分析优势
+  // ===== 分析优势（具体化，引用数据） =====
   if (step2.overallStrength === 'strong') {
-    strengths.push('你天生具备很强的财富感知力，对赚钱机会的嵅觉比常人更敏锐');
+    const strongPlanets = step2.dignities.filter(d => d.status === 'domicile' || d.status === 'exaltation').map(d => d.planet.nameCn);
+    if (strongPlanets.length > 0) {
+      strengths.push(`你的核心财富能量非常强——${strongPlanets.join('、')}都处于最佳状态，这意味着你天生对金钱有超强的感知力和吸引力`);
+    } else {
+      strengths.push('你天生具备很强的财富感知力，对赚钱机会的直觉比大多数人更敏锐');
+    }
+  } else if (step2.overallStrength === 'moderate') {
+    strengths.push('你的财富基础扎实均衡，虽然不是爆发型选手，但胜在稳定持久');
   }
+
   if (step3.harmoniousAspects.length >= 3) {
-    strengths.push('你的财运流动性很好，赚钱的机会和渠道比较多，容易获得多方面的财务支持');
+    strengths.push(`你的赚钱渠道特别多元——分析显示你有${step3.harmoniousAspects.length}个有利的财富联动关系，这意味着你可以同时从多个方向获得收入`);
+  } else if (step3.harmoniousAspects.length >= 1) {
+    strengths.push('你有一些不错的财富联动关系，善加利用可以让赚钱事半功倍');
   }
+
   const excellentFlyIns = [step4.house2RulerFlyIn, step4.venusFlyIn, step4.jupiterFlyIn, step4.moonFlyIn]
     .filter(f => f.quality === 'excellent');
   if (excellentFlyIns.length > 0) {
-    strengths.push('你的财富实现路径清晰，知道在哪个方向发力最容易获得回报');
-  }
-  if (step1.house2.planetsInHouse.some(p => ['Venus', 'Jupiter'].includes(p.name))) {
-    strengths.push('你的个人财富基础扎实，天生具备吸引财富的能力');
+    const directions = excellentFlyIns.map(f => {
+      if (f.house === 10) return '事业成就';
+      if (f.house === 11) return '人脉资源';
+      return `第${f.house}宫方向`;
+    });
+    strengths.push(`你的赚钱方向非常明确——通过${directions.join('和')}来积累财富是你的最优路径`);
   }
 
-  // 分析挑战
+  if (step1.house2.planetsInHouse.some(p => ['Venus', 'Jupiter'].includes(p.name))) {
+    const luckyPlanets = step1.house2.planetsInHouse.filter(p => ['Venus', 'Jupiter'].includes(p.name)).map(p => p.nameCn);
+    strengths.push(`你的正财宫有${luckyPlanets.join('和')}坐镇，这是天生的"招财体质"——钱会比较容易流向你`);
+  }
+
+  if (step5.score >= 70) {
+    strengths.push('你的事业和财富高度绑定，职位越高赚得越多——专注事业发展就是最好的理财策略');
+  }
+
+  // ===== 分析挑战（具体化，给出应对方向） =====
   if (step2.overallStrength === 'weak') {
-    challenges.push('财富积累可能需要比常人付出更多努力，但坚持就能看到效果');
+    const weakPlanets = step2.dignities.filter(d => d.status === 'detriment' || d.status === 'fall').map(d => d.planet.nameCn);
+    if (weakPlanets.length > 0) {
+      challenges.push(`${weakPlanets.join('、')}的能量偏弱，这意味着你在赚钱上需要比别人多花30%的努力——但好消息是，后天的学习和经验完全可以弥补`);
+    } else {
+      challenges.push('财富积累的起步阶段可能比较慢，需要更多耐心和策略');
+    }
   }
+
   if (step3.challengingAspects.length >= 3) {
-    challenges.push('财务上可能会遇到一些阻力和波动，需要提前做好风险管理');
+    challenges.push(`你有${step3.challengingAspects.length}个财务挑战因素，具体表现为：赚钱过程中容易遇到突发阻力（比如项目延期、回款困难），建议每月预留收入的15-20%作为应急资金`);
+  } else if (step3.challengingAspects.length >= 1) {
+    challenges.push('偶尔会遇到一些财务上的小波动，不是大问题，但需要你有风险意识');
   }
+
   const challengingFlyIns = [step4.house2RulerFlyIn, step4.venusFlyIn, step4.jupiterFlyIn, step4.moonFlyIn]
     .filter(f => f.quality === 'challenging');
-  if (challengingFlyIns.length > 0) {
-    challenges.push('财富积累过程需要更多耐心，不宜急于求成');
+  if (challengingFlyIns.length >= 2) {
+    challenges.push('你的赚钱路径中有一些"弯路"——不是赚不到钱，而是过程会比较曲折，需要你有足够的耐心和灵活性');
+  } else if (challengingFlyIns.length === 1) {
+    challenges.push('有一个赚钱方向可能需要你绕个弯才能走通，不要在一棵树上吊死，灵活调整策略');
   }
 
-  // 建议
+  if (step1.score < 40) {
+    challenges.push('你的赚钱天赋评分偏低，但这不代表你赚不到钱——只是说明你需要通过后天学习来建立赚钱的方法论，而不是靠直觉');
+  }
+
+  // ===== 建议（具体到可执行） =====
   if (step4.venusFlyIn.house === 10 || step4.jupiterFlyIn.house === 10) {
-    advice.push('事业是你最大的财富引擎，建议把主要精力放在职业发展上');
+    advice.push('你最大的"提款机"就是你的事业——建议每年至少做一次职业规划review，确保你在正确的赛道上加速');
   }
   if (step4.venusFlyIn.house === 11 || step4.jupiterFlyIn.house === 11) {
-    advice.push('人脉关系是你的财富加速器，多结交优质人脉、参与行业圈子');
+    advice.push('你的人脉就是你的金脉——每周至少花2小时维护重要关系，参加行业活动，这是你最高ROI的"投资"');
+  }
+  if (step4.venusFlyIn.house === 5 || step4.jupiterFlyIn.house === 5) {
+    advice.push('你有投资和创意变现的天赋——可以从每月收入的10%开始做定投，逐步建立被动收入体系');
+  }
+  if (step4.venusFlyIn.house === 7 || step4.jupiterFlyIn.house === 7) {
+    advice.push('合作是你的财富放大器——找到一个能力互补的搭档，你们一起干的收益会远超单打独斗');
   }
   if (step3.challengingAspects.some(a => a.aspect.planet1 === 'Saturn' || a.aspect.planet2 === 'Saturn')) {
-    advice.push('建议建立严格的财务纪律和长期规划，避免冲动消费和高风险投资');
+    advice.push('你需要建立铁一般的财务纪律——设置自动转账，每月发工资当天就把20%存入"不能碰"的账户');
   }
-  advice.push('人生中会有几个明显的财务机遇窗口期，到时要果断行动');
-  if (challenges.length > 0) {
-    advice.push('面对困难时不要气馊，持续学习和成长是突破财务瓶颈的关键');
+  if (advice.length < 3) {
+    advice.push('每半年做一次财务体检：收入是否在增长？支出是否合理？投资是否需要调整？');
+  }
+  if (challenges.length > 0 && advice.length < 4) {
+    advice.push('遇到财务低谷时记住：这是暂时的。保持学习、保持行动，突破期一定会来');
   }
 
   // 如果没有明显优势/挑战，添加默认项
-  if (strengths.length === 0) strengths.push('你的财富基础整体均衡，具备稳定发展的条件');
-  if (challenges.length === 0) challenges.push('整体挑战较少，但仍需保持财务警觉和持续努力');
+  if (strengths.length === 0) strengths.push('你的财富基础整体均衡，各方面没有明显短板，适合稳扎稳打地积累');
+  if (challenges.length === 0) challenges.push('你的财务挑战较少，但越是顺风顺水越要居安思危——建立应急基金和保险保障');
 
-  // 综合总结
+  // 综合总结（结合具体数据生成）
+  const strengthCount = strengths.length;
+  const challengeCount = challenges.length;
   let summary = '';
   switch (grade) {
     case 'A10':
-      summary = '你具备非常强的财富潜力。多重有利因素叠加，你天生对财富机会嵅觉敏锐，且容易获得贵人和资源的助力。人生中会有明显的财富跃升期，关键是把握住每一次重要机遇。';
+      summary = `你的财富潜力评分${totalScore}分，属于最顶尖的级别。你有${strengthCount}个核心优势，多重有利因素叠加让你天生就是财富的“磁铁”。你的人生中会有多次明显的财富跃升机会，关键是在机会来临时果断行动。`;
       break;
     case 'A9':
-      summary = '你的财富基础非常好，发展空间广阔。通过正确的方向和持续努力，你有很大机会实现财富的显著增长。关键时期的决策尤为重要，不要错过重要的转折点。';
+      summary = `你的财富潜力评分${totalScore}分，基础非常扎实。你有${strengthCount}个核心优势，发展空间广阔。通过正确的方向选择和持续努力，你有很大机会实现财富的大幅增长。不要错过人生中的几个关键转折点。`;
       break;
     case 'A8':
-      summary = '你具备不错的财富潜力。通过专业能力的持续提升和正确的理财策略，你有望实现稳健的财富增长。建议发挥自己的优势领域，同时注意规避不必要的风险。';
+      summary = `你的财富潜力评分${totalScore}分，属于优良水平。你有${strengthCount}个核心优势${challengeCount > 0 ? `和${challengeCount}个需要注意的挑战` : ''}。发挥优势领域、配合正确的理财策略，你有望实现稳健且可观的财富增长。`;
       break;
     case 'A7':
-      summary = '你的财富需要通过持续努力来积累。过程中可能会遇到一些波动，但整体基础稳定。建议注重技能提升和长期规划，耐心经营终会看到回报。';
+      summary = `你的财富潜力评分${totalScore}分，基础稳定但需要持续经营。${challengeCount > 0 ? `虽然有${challengeCount}个挑战因素，但` : ''}你的${strengthCount}个优势足以支撑你稳步前进。耐心提升技能、做好长期规划，回报会逐步显现。`;
       break;
     case 'A6':
-      summary = '你的财富之路需要更多耐心和策略。每个人都有属于自己的财富密码，关键是找到适合自己的方向。建议重点关注风险管理，建立良好的财务习惯，通过持续学习来提升财富能力。';
+      summary = `你的财富潜力评分${totalScore}分，需要更多策略和耐心。${challengeCount > 0 ? `你面临${challengeCount}个挑战，但` : ''}每个人都有属于自己的财富密码。重点关注风险管理、建立好习惯、持续学习，你的财富能力会稳步提升。`;
       break;
   }
 

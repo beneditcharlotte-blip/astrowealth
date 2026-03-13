@@ -28,3 +28,11 @@
 - [x] Replace DetailTab with nine-grid layout in ResultPage
 - [x] Optimize LLM prompt: pass specific data points, require concrete personalized content
 - [x] Test and checkpoint
+- [x] Optimize LLM prompt to generate more specific, personalized content (not generic)
+- [x] Redesign AI report as premium commercial module in prominent position
+- [x] Move AI deep analysis to top/center of result page as core selling point
+- [x] Test and checkpoint
+- [x] Enrich nineGrid.ts oneLiner/detail with more specific planet-based descriptions
+- [x] Improve step6 strengths/challenges to reference specific grid ratings and scores
+- [x] Refine LLM prompt to require referencing specific grid ratings (S/A/B/C/D) with concrete examples
+- [x] Restructure ResultPage: AI report as premium hero section, remove tab navigation

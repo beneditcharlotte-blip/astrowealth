@@ -1,10 +1,10 @@
 /**
- * 结果报告页
- * - 财富人格标签 + 等级
- * - 成就徽章系统
- * - 综合报告：LLM 按人生阶段时间表生成
- * - 详细解读：九宫格展示（先天优势 + 后天努力）
- * - 交互式人生财富时间轴
+ * 结果报告页 — 单页滚动式布局
+ * 1. 等级 + 财富人格
+ * 2. AI 深度解读（商业化核心板块，最显眼位置）
+ * 3. 九宫格详细解读
+ * 4. 人生财富时间轴
+ * 5. 成就徽章
  */
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useLocation } from 'wouter';
@@ -30,7 +30,6 @@ export default function ResultPage() {
   const [, navigate] = useLocation();
   const [chart, setChart] = useState<ChartData | null>(null);
   const [assessment, setAssessment] = useState<WealthAssessment | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'detail'>('overview');
 
   useEffect(() => {
     try {
@@ -60,34 +59,20 @@ export default function ResultPage() {
         </div>
       </header>
 
-      {/* Grade Hero + Personality */}
+      {/* 1. Grade Hero + Personality */}
       <GradeHeroSection chart={chart} assessment={assessment} gradeColor={gradeColor} />
 
-      {/* Tab Navigation */}
-      <nav className="border-b border-[#b8963e]/10 sticky top-0 bg-[#1c1f26]/95 backdrop-blur z-10">
-        <div className="container max-w-4xl flex gap-0">
-          {([
-            { key: 'overview', label: '综合报告' },
-            { key: 'detail', label: '详细解读' },
-          ] as const).map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`px-6 py-3.5 text-sm tracking-wider transition-colors relative ${activeTab === tab.key ? 'text-[#b8963e]' : 'text-[#8a8070] hover:text-[#e0d5c1]'}`}
-              style={{ fontFamily: 'var(--font-display)' }}
-            >
-              {tab.label}
-              {activeTab === tab.key && <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 right-0 h-px bg-[#b8963e]" />}
-            </button>
-          ))}
-        </div>
-      </nav>
+      {/* 2. AI 深度解读 — 商业化核心板块 */}
+      <AIDeepAnalysis chart={chart} assessment={assessment} />
 
-      {/* Tab Content */}
-      <main className="container max-w-4xl py-10">
-        {activeTab === 'overview' && <OverviewTab chart={chart} assessment={assessment} />}
-        {activeTab === 'detail' && <DetailTab chart={chart} assessment={assessment} />}
-      </main>
+      {/* 3. 九宫格详细解读 */}
+      <NineGridSection chart={chart} assessment={assessment} />
+
+      {/* 4. 人生财富时间轴 */}
+      <TimelineSection chart={chart} assessment={assessment} />
+
+      {/* 5. 成就徽章 */}
+      <BadgesFullSection assessment={assessment} />
 
       {/* Disclaimer */}
       <footer className="py-8 border-t border-[#b8963e]/10">
@@ -102,9 +87,6 @@ export default function ResultPage() {
 // ========== Grade Hero + Personality Section ==========
 function GradeHeroSection({ chart, assessment, gradeColor }: { chart: ChartData; assessment: WealthAssessment; gradeColor: string }) {
   const personality = useMemo(() => deriveWealthPersonality(assessment, chart), [assessment, chart]);
-  const badges = useMemo(() => computeBadges(assessment), [assessment]);
-  const unlockedBadges = badges.filter(b => b.unlocked);
-  const [showAllBadges, setShowAllBadges] = useState(false);
 
   return (
     <section className="py-10 border-b border-[#b8963e]/10">
@@ -116,7 +98,7 @@ function GradeHeroSection({ chart, assessment, gradeColor }: { chart: ChartData;
           </p>
 
           {/* Grade + Personality Side by Side */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Grade Card */}
             <div className="text-center p-6 border border-[#b8963e]/15 bg-[#252830]/30">
               <div className="text-6xl font-bold tracking-wider mb-1" style={{ fontFamily: 'var(--font-display)', color: gradeColor }}>
@@ -146,9 +128,6 @@ function GradeHeroSection({ chart, assessment, gradeColor }: { chart: ChartData;
             {/* Personality Card */}
             <PersonalityCard personality={personality} />
           </div>
-
-          {/* Badges */}
-          <BadgesSection badges={badges} unlockedBadges={unlockedBadges} showAll={showAllBadges} onToggle={() => setShowAllBadges(!showAllBadges)} />
         </motion.div>
       </div>
     </section>
@@ -194,68 +173,11 @@ function PersonalityCard({ personality }: { personality: WealthPersonality }) {
   );
 }
 
-// ========== Badges Section ==========
-function BadgesSection({ badges, unlockedBadges, showAll, onToggle }: {
-  badges: Badge[];
-  unlockedBadges: Badge[];
-  showAll: boolean;
-  onToggle: () => void;
-}) {
-  const displayBadges = showAll ? badges : unlockedBadges;
-
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <SectionTitle title="成就徽章" />
-          <span className="text-xs text-[#8a8070] ml-2">
-            已解锁 {unlockedBadges.length}/{badges.length}
-          </span>
-        </div>
-        <button onClick={onToggle} className="text-xs text-[#8a8070] hover:text-[#b8963e] transition-colors">
-          {showAll ? '只看已解锁' : '查看全部'}
-        </button>
-      </div>
-
-      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
-        {displayBadges.map((badge, i) => (
-          <motion.div
-            key={badge.id}
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: i * 0.04 }}
-            className={`group relative p-3 border text-center transition-all cursor-default ${
-              badge.unlocked ? 'bg-[#252830]/50 hover:bg-[#252830]/80' : 'bg-[#1c1f26]/50 opacity-40'
-            }`}
-            style={{ borderColor: badge.unlocked ? `${badge.rarityColor}25` : 'rgba(184,150,62,0.06)' }}
-            title={badge.unlocked ? badge.description : `未解锁：${badge.unlockHint}`}
-          >
-            <div className={`text-2xl mb-1 ${badge.unlocked ? '' : 'grayscale'}`}>
-              {badge.unlocked ? badge.icon : '🔒'}
-            </div>
-            <div className="text-[10px] text-[#e0d5c1] leading-tight mb-0.5 truncate">{badge.name}</div>
-            <div className="text-[9px]" style={{ color: badge.unlocked ? badge.rarityColor : '#555' }}>
-              {getRarityName(badge.rarity)}
-            </div>
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-[#1c1f26] border border-[#b8963e]/20 text-left opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20">
-              <p className="text-xs text-[#e0d5c1] mb-1">{badge.name}</p>
-              <p className="text-[10px] text-[#8a8070] leading-relaxed">
-                {badge.unlocked ? badge.description : `解锁条件：${badge.unlockHint}`}
-              </p>
-            </div>
-          </motion.div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ========== Overview Tab ==========
-function OverviewTab({ chart, assessment }: { chart: ChartData; assessment: WealthAssessment }) {
+// ========== AI Deep Analysis — Premium Commercial Block ==========
+function AIDeepAnalysis({ chart, assessment }: { chart: ChartData; assessment: WealthAssessment }) {
   const [report, setReport] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const timeline = useMemo(() => generateTimeline(assessment, chart.birthInfo.year), [assessment, chart]);
   const personality = useMemo(() => deriveWealthPersonality(assessment, chart), [assessment, chart]);
   const nineGrid = useMemo(() => computeNineGrid(assessment, chart), [assessment, chart]);
 
@@ -273,7 +195,6 @@ function OverviewTab({ chart, assessment }: { chart: ChartData; assessment: Weal
   });
 
   const buildMutationInput = useCallback(() => {
-    // 构建更具体的数据，让 LLM 能生成个性化内容
     const gridSummary = nineGrid.allCells.map(cell =>
       `${cell.name}（${cell.rating}级，${cell.rawScore}分）：${cell.oneLiner}`
     ).join('\n');
@@ -323,56 +244,215 @@ function OverviewTab({ chart, assessment }: { chart: ChartData; assessment: Weal
   };
 
   return (
-    <div className="space-y-10">
-      {/* Quick Summary Cards */}
-      <div>
-        <SectionTitle title="你的财富画像" />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-          <QuickCard icon="💪" title="你的优势" items={assessment.step6.strengths} color="#7a8a5c" />
-          <QuickCard icon="⚠️" title="需要注意" items={assessment.step6.challenges} color="#c47830" />
-          <QuickCard icon="💡" title="行动建议" items={assessment.step6.advice} color="#b8963e" />
-        </div>
+    <section className="relative border-b border-[#b8963e]/10 overflow-hidden">
+      {/* Premium background glow */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full opacity-[0.03]"
+          style={{ background: 'radial-gradient(ellipse, #b8963e, transparent 70%)' }} />
       </div>
 
-      {/* Interactive Timeline */}
-      <div>
-        <SectionTitle title="你的人生财富时间轴" />
-        <InteractiveTimeline stages={timeline} />
-      </div>
+      <div className="container max-w-4xl py-12 relative">
+        {/* Premium Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="text-center mb-8"
+        >
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 border border-[#b8963e]/30 bg-[#b8963e]/5 mb-4">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-[#b8963e]">
+              <path d="M8 1L10 6L15 6.5L11.5 10L12.5 15L8 12.5L3.5 15L4.5 10L1 6.5L6 6L8 1Z" fill="currentColor" />
+            </svg>
+            <span className="text-xs text-[#b8963e] tracking-[0.2em] font-medium" style={{ fontFamily: 'var(--font-display)' }}>
+              AI 专属深度解读
+            </span>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-[#b8963e]">
+              <path d="M8 1L10 6L15 6.5L11.5 10L12.5 15L8 12.5L3.5 15L4.5 10L1 6.5L6 6L8 1Z" fill="currentColor" />
+            </svg>
+          </div>
+          <h2 className="text-2xl md:text-3xl font-bold text-[#e8dcc8] tracking-wider mb-2" style={{ fontFamily: 'var(--font-display)' }}>
+            你的专属财富报告
+          </h2>
+          <p className="text-sm text-[#8a8070] max-w-lg mx-auto">
+            基于你的 {assessment.totalScore} 分综合评分和 {personality.title} 人格特征，AI 为你量身定制的财富规划建议
+          </p>
+        </motion.div>
 
-      {/* LLM Report */}
-      <div>
-        <div className="flex items-center justify-between">
-          <SectionTitle title="AI 深度解读" />
-          {report && (
-            <button onClick={handleRegenerate} className="text-xs text-[#8a8070] hover:text-[#b8963e] transition-colors flex items-center gap-1">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 7C1 3.68 3.68 1 7 1C10.32 1 13 3.68 13 7C13 10.32 10.32 13 7 13" stroke="currentColor" strokeWidth="1.2" /><path d="M1 7L3 9M1 7L3 5" stroke="currentColor" strokeWidth="1.2" /></svg>
-              重新生成
-            </button>
-          )}
+        {/* Quick Insight Cards — 优势/挑战/建议 */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <QuickCard icon="💪" title="你的核心优势" items={assessment.step6.strengths} color="#7a8a5c" />
+          <QuickCard icon="⚠️" title="需要注意的" items={assessment.step6.challenges} color="#c47830" />
+          <QuickCard icon="💡" title="立刻能做的" items={assessment.step6.advice} color="#b8963e" />
         </div>
-        <div className="mt-4 border border-[#b8963e]/15 bg-[#252830]/30 p-6 md:p-8">
-          {isGenerating && (
-            <div className="flex flex-col items-center justify-center py-12">
-              <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: 'linear' }} className="w-10 h-10 border-2 border-[#b8963e]/20 border-t-[#b8963e] rounded-full mb-4" />
-              <p className="text-[#8a8070] text-sm">正在为你生成个性化报告...</p>
-              <p className="text-[#6b6358] text-xs mt-1">AI 正在分析你的财富基因和每个人生阶段的趋势</p>
+
+        {/* AI Report Content */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+        >
+          <div className="relative border border-[#b8963e]/20 bg-gradient-to-b from-[#252830]/60 to-[#1c1f26]/40">
+            {/* Top decorative bar */}
+            <div className="h-px bg-gradient-to-r from-transparent via-[#b8963e]/40 to-transparent" />
+
+            <div className="p-6 md:p-10">
+              {/* Regenerate button */}
+              {report && !isGenerating && (
+                <div className="flex justify-end mb-4">
+                  <button onClick={handleRegenerate} className="text-xs text-[#8a8070] hover:text-[#b8963e] transition-colors flex items-center gap-1.5 px-3 py-1.5 border border-[#b8963e]/15 hover:border-[#b8963e]/30">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 7C1 3.68 3.68 1 7 1C10.32 1 13 3.68 13 7C13 10.32 10.32 13 7 13" stroke="currentColor" strokeWidth="1.2" /><path d="M1 7L3 9M1 7L3 5" stroke="currentColor" strokeWidth="1.2" /></svg>
+                    换个角度重新解读
+                  </button>
+                </div>
+              )}
+
+              {isGenerating && (
+                <div className="flex flex-col items-center justify-center py-16">
+                  <div className="relative w-16 h-16 mb-6">
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+                      className="absolute inset-0 border-2 border-[#b8963e]/10 border-t-[#b8963e]/60 rounded-full"
+                    />
+                    <motion.div
+                      animate={{ rotate: -360 }}
+                      transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                      className="absolute inset-2 border border-[#b8963e]/10 border-b-[#b8963e]/40 rounded-full"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="text-[#b8963e]">
+                        <path d="M10 2L12 7.5L18 8L13.5 12L15 18L10 15L5 18L6.5 12L2 8L8 7.5L10 2Z" fill="currentColor" opacity="0.6" />
+                      </svg>
+                    </div>
+                  </div>
+                  <p className="text-[#e0d5c1] text-sm font-medium mb-1" style={{ fontFamily: 'var(--font-display)' }}>AI 正在为你撰写专属报告</p>
+                  <p className="text-[#6b6358] text-xs">结合你的财富人格和九宫格数据，深度分析每个人生阶段...</p>
+                </div>
+              )}
+
+              {error && (
+                <div className="text-center py-12">
+                  <p className="text-[#c47830] text-sm mb-4">{error}</p>
+                  <button onClick={handleRegenerate} className="text-sm text-[#b8963e] border border-[#b8963e]/30 px-5 py-2 hover:bg-[#b8963e]/10 transition-colors">
+                    点击重试
+                  </button>
+                </div>
+              )}
+
+              {report && !isGenerating && (
+                <div className="prose-custom">
+                  <Streamdown>{report}</Streamdown>
+                </div>
+              )}
             </div>
-          )}
-          {error && (
-            <div className="text-center py-8">
-              <p className="text-[#c47830] text-sm mb-3">{error}</p>
-              <button onClick={handleRegenerate} className="text-sm text-[#b8963e] border border-[#b8963e]/30 px-4 py-1.5 hover:bg-[#b8963e]/10 transition-colors">点击重试</button>
-            </div>
-          )}
-          {report && !isGenerating && (
-            <div className="prose-custom">
-              <Streamdown>{report}</Streamdown>
-            </div>
-          )}
-        </div>
+
+            {/* Bottom decorative bar */}
+            <div className="h-px bg-gradient-to-r from-transparent via-[#b8963e]/20 to-transparent" />
+          </div>
+        </motion.div>
       </div>
-    </div>
+    </section>
+  );
+}
+
+// ========== Quick Card ==========
+function QuickCard({ icon, title, items, color }: { icon: string; title: string; items: string[]; color: string }) {
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="p-5 border bg-[#252830]/40" style={{ borderColor: `${color}15` }}>
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-lg">{icon}</span>
+        <h4 className="text-sm font-medium" style={{ color, fontFamily: 'var(--font-display)' }}>{title}</h4>
+      </div>
+      <ul className="space-y-2">
+        {items.map((item, i) => (
+          <li key={i} className="text-sm text-[#a09882] leading-relaxed flex gap-2">
+            <span className="mt-1.5 w-1 h-1 rounded-full flex-shrink-0" style={{ background: color }} />
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
+    </motion.div>
+  );
+}
+
+// ========== Nine Grid Section ==========
+function NineGridSection({ chart, assessment }: { chart: ChartData; assessment: WealthAssessment }) {
+  const nineGrid = useMemo(() => computeNineGrid(assessment, chart), [assessment, chart]);
+  const personality = useMemo(() => deriveWealthPersonality(assessment, chart), [assessment, chart]);
+  const [expandedCell, setExpandedCell] = useState<string | null>(null);
+
+  return (
+    <section className="border-b border-[#b8963e]/10">
+      <div className="container max-w-4xl py-12">
+        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+          <SectionTitle title="你的财富九宫格" />
+          <p className="text-sm text-[#8a8070] mt-2 mb-6">点击任意格子查看详细解读</p>
+
+          {/* 先天优势行 */}
+          <div className="mb-2">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-3 h-3 rounded-full bg-gradient-to-br from-[#d4a843] to-[#b8963e]" />
+              <span className="text-xs text-[#b8963e] tracking-wider" style={{ fontFamily: 'var(--font-display)' }}>先天优势 · 你天生自带的财富基因</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 md:gap-3">
+              {nineGrid.innate.map((cell, i) => (
+                <NineGridCell key={cell.id} cell={cell} index={i} isExpanded={expandedCell === cell.id} onToggle={() => setExpandedCell(expandedCell === cell.id ? null : cell.id)} />
+              ))}
+            </div>
+            <NineGridExpandedDetail cells={nineGrid.innate} expandedId={expandedCell} />
+          </div>
+
+          {/* 连接层 */}
+          <div className="mb-2">
+            <div className="flex items-center gap-2 mb-3 mt-4">
+              <div className="w-3 h-3 rounded-full bg-gradient-to-br from-[#8a8070] to-[#6b6358]" />
+              <span className="text-xs text-[#8a8070] tracking-wider" style={{ fontFamily: 'var(--font-display)' }}>人际连接 · 先天与后天的桥梁</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 md:gap-3">
+              <NineGridCell cell={nineGrid.bridge[0]!} index={0} isExpanded={expandedCell === nineGrid.bridge[0]!.id} onToggle={() => setExpandedCell(expandedCell === nineGrid.bridge[0]!.id ? null : nineGrid.bridge[0]!.id)} />
+              <PersonalityCenterCell personality={personality} />
+              <NineGridCell cell={nineGrid.bridge[2]!} index={2} isExpanded={expandedCell === nineGrid.bridge[2]!.id} onToggle={() => setExpandedCell(expandedCell === nineGrid.bridge[2]!.id ? null : nineGrid.bridge[2]!.id)} />
+            </div>
+            <NineGridExpandedDetail cells={[nineGrid.bridge[0]!, nineGrid.bridge[2]!]} expandedId={expandedCell} />
+          </div>
+
+          {/* 后天努力行 */}
+          <div>
+            <div className="flex items-center gap-2 mb-3 mt-4">
+              <div className="w-3 h-3 rounded-full bg-gradient-to-br from-[#6b8ab8] to-[#5a7aa8]" />
+              <span className="text-xs text-[#6b8ab8] tracking-wider" style={{ fontFamily: 'var(--font-display)' }}>后天努力 · 你可以掌控的财富方向</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 md:gap-3">
+              {nineGrid.effort.map((cell, i) => (
+                <NineGridCell key={cell.id} cell={cell} index={i} isExpanded={expandedCell === cell.id} onToggle={() => setExpandedCell(expandedCell === cell.id ? null : cell.id)} />
+              ))}
+            </div>
+            <NineGridExpandedDetail cells={nineGrid.effort} expandedId={expandedCell} />
+          </div>
+
+          {/* 综合总结 */}
+          <div className="mt-8 p-6 border border-[#b8963e]/15 bg-[#252830]/40">
+            <p className="text-sm text-[#e0d5c1] leading-relaxed">{assessment.step6.summary}</p>
+          </div>
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
+// ========== Timeline Section ==========
+function TimelineSection({ chart, assessment }: { chart: ChartData; assessment: WealthAssessment }) {
+  const timeline = useMemo(() => generateTimeline(assessment, chart.birthInfo.year), [assessment, chart]);
+
+  return (
+    <section className="border-b border-[#b8963e]/10">
+      <div className="container max-w-4xl py-12">
+        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+          <SectionTitle title="你的人生财富时间轴" />
+          <InteractiveTimeline stages={timeline} />
+        </motion.div>
+      </div>
+    </section>
   );
 }
 
@@ -461,91 +541,62 @@ function InteractiveTimeline({ stages }: { stages: TimelineStage[] }) {
   );
 }
 
-// ========== Quick Card ==========
-function QuickCard({ icon, title, items, color }: { icon: string; title: string; items: string[]; color: string }) {
-  return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="p-5 border border-[#b8963e]/10 bg-[#252830]/40">
-      <div className="flex items-center gap-2 mb-3">
-        <span className="text-lg">{icon}</span>
-        <h4 className="text-sm font-medium" style={{ color, fontFamily: 'var(--font-display)' }}>{title}</h4>
-      </div>
-      <ul className="space-y-2">
-        {items.map((item, i) => (
-          <li key={i} className="text-sm text-[#a09882] leading-relaxed flex gap-2">
-            <span className="mt-1.5 w-1 h-1 rounded-full flex-shrink-0" style={{ background: color }} />
-            <span>{item}</span>
-          </li>
-        ))}
-      </ul>
-    </motion.div>
-  );
-}
-
-// ========== Detail Tab — Nine Grid ==========
-function DetailTab({ chart, assessment }: { chart: ChartData; assessment: WealthAssessment }) {
-  const nineGrid = useMemo(() => computeNineGrid(assessment, chart), [assessment, chart]);
-  const personality = useMemo(() => deriveWealthPersonality(assessment, chart), [assessment, chart]);
-  const [expandedCell, setExpandedCell] = useState<string | null>(null);
+// ========== Badges Full Section ==========
+function BadgesFullSection({ assessment }: { assessment: WealthAssessment }) {
+  const badges = useMemo(() => computeBadges(assessment), [assessment]);
+  const unlockedBadges = badges.filter(b => b.unlocked);
+  const [showAll, setShowAll] = useState(false);
+  const displayBadges = showAll ? badges : unlockedBadges;
 
   return (
-    <div className="space-y-10">
-      {/* Nine Grid */}
-      <div>
-        <SectionTitle title="你的财富九宫格" />
-        <p className="text-sm text-[#8a8070] mt-2 mb-6">点击任意格子查看详细解读</p>
-
-        {/* 先天优势行 */}
-        <div className="mb-2">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-3 h-3 rounded-full bg-gradient-to-br from-[#d4a843] to-[#b8963e]" />
-            <span className="text-xs text-[#b8963e] tracking-wider" style={{ fontFamily: 'var(--font-display)' }}>先天优势 · 你天生自带的财富基因</span>
+    <section className="border-b border-[#b8963e]/10">
+      <div className="container max-w-4xl py-12">
+        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <SectionTitle title="成就徽章" />
+              <span className="text-xs text-[#8a8070] ml-2">
+                已解锁 {unlockedBadges.length}/{badges.length}
+              </span>
+            </div>
+            <button onClick={() => setShowAll(!showAll)} className="text-xs text-[#8a8070] hover:text-[#b8963e] transition-colors">
+              {showAll ? '只看已解锁' : '查看全部'}
+            </button>
           </div>
-          <div className="grid grid-cols-3 gap-2 md:gap-3">
-            {nineGrid.innate.map((cell, i) => (
-              <NineGridCell key={cell.id} cell={cell} index={i} isExpanded={expandedCell === cell.id} onToggle={() => setExpandedCell(expandedCell === cell.id ? null : cell.id)} />
+
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+            {displayBadges.map((badge, i) => (
+              <motion.div
+                key={badge.id}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: i * 0.04 }}
+                className={`group relative p-3 border text-center transition-all cursor-default ${
+                  badge.unlocked ? 'bg-[#252830]/50 hover:bg-[#252830]/80' : 'bg-[#1c1f26]/50 opacity-40'
+                }`}
+                style={{ borderColor: badge.unlocked ? `${badge.rarityColor}25` : 'rgba(184,150,62,0.06)' }}
+                title={badge.unlocked ? badge.description : `未解锁：${badge.unlockHint}`}
+              >
+                <div className={`text-2xl mb-1 ${badge.unlocked ? '' : 'grayscale'}`}>
+                  {badge.unlocked ? badge.icon : '🔒'}
+                </div>
+                <div className="text-[10px] text-[#e0d5c1] leading-tight mb-0.5 truncate">{badge.name}</div>
+                <div className="text-[9px]" style={{ color: badge.unlocked ? badge.rarityColor : '#555' }}>
+                  {getRarityName(badge.rarity)}
+                </div>
+                {/* Tooltip on hover */}
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-40 p-2 bg-[#252830] border border-[#b8963e]/20 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                  <p className="text-xs text-[#e0d5c1] mb-1">{badge.name}</p>
+                  <p className="text-[10px] text-[#8a8070] leading-relaxed">
+                    {badge.unlocked ? badge.description : `解锁条件：${badge.unlockHint}`}
+                  </p>
+                </div>
+              </motion.div>
             ))}
           </div>
-          <NineGridExpandedDetail cells={nineGrid.innate} expandedId={expandedCell} />
-        </div>
-
-        {/* 连接层 */}
-        <div className="mb-2">
-          <div className="flex items-center gap-2 mb-3 mt-4">
-            <div className="w-3 h-3 rounded-full bg-gradient-to-br from-[#8a8070] to-[#6b6358]" />
-            <span className="text-xs text-[#8a8070] tracking-wider" style={{ fontFamily: 'var(--font-display)' }}>人际连接 · 先天与后天的桥梁</span>
-          </div>
-          <div className="grid grid-cols-3 gap-2 md:gap-3">
-            <NineGridCell cell={nineGrid.bridge[0]!} index={0} isExpanded={expandedCell === nineGrid.bridge[0]!.id} onToggle={() => setExpandedCell(expandedCell === nineGrid.bridge[0]!.id ? null : nineGrid.bridge[0]!.id)} />
-            {/* 中间格：财富人格 */}
-            <PersonalityCenterCell personality={personality} />
-            <NineGridCell cell={nineGrid.bridge[2]!} index={2} isExpanded={expandedCell === nineGrid.bridge[2]!.id} onToggle={() => setExpandedCell(expandedCell === nineGrid.bridge[2]!.id ? null : nineGrid.bridge[2]!.id)} />
-          </div>
-          <NineGridExpandedDetail cells={[nineGrid.bridge[0]!, nineGrid.bridge[2]!]} expandedId={expandedCell} />
-        </div>
-
-        {/* 后天努力行 */}
-        <div>
-          <div className="flex items-center gap-2 mb-3 mt-4">
-            <div className="w-3 h-3 rounded-full bg-gradient-to-br from-[#6b8ab8] to-[#5a7aa8]" />
-            <span className="text-xs text-[#6b8ab8] tracking-wider" style={{ fontFamily: 'var(--font-display)' }}>后天努力 · 你可以掌控的财富方向</span>
-          </div>
-          <div className="grid grid-cols-3 gap-2 md:gap-3">
-            {nineGrid.effort.map((cell, i) => (
-              <NineGridCell key={cell.id} cell={cell} index={i} isExpanded={expandedCell === cell.id} onToggle={() => setExpandedCell(expandedCell === cell.id ? null : cell.id)} />
-            ))}
-          </div>
-          <NineGridExpandedDetail cells={nineGrid.effort} expandedId={expandedCell} />
-        </div>
+        </motion.div>
       </div>
-
-      {/* 综合总结 */}
-      <div>
-        <SectionTitle title="综合总结" />
-        <div className="mt-4 p-6 border border-[#b8963e]/15 bg-[#252830]/40">
-          <p className="text-sm text-[#e0d5c1] leading-relaxed">{assessment.step6.summary}</p>
-        </div>
-      </div>
-    </div>
+    </section>
   );
 }
 
@@ -575,10 +626,8 @@ function NineGridCell({ cell, index, isExpanded, onToggle }: {
       } bg-gradient-to-br ${RATING_BG[cell.rating]}`}
       style={{
         borderColor: isExpanded ? `${cell.color}60` : `${cell.color}20`,
-        // ring color handled via className
       }}
     >
-      {/* Rating badge */}
       <div className="absolute top-2 right-2 w-6 h-6 md:w-7 md:h-7 flex items-center justify-center text-xs md:text-sm font-bold rounded-sm"
         style={{ background: `${cell.color}20`, color: cell.color, fontFamily: 'var(--font-display)' }}
       >
@@ -589,7 +638,6 @@ function NineGridCell({ cell, index, isExpanded, onToggle }: {
       <h4 className="text-xs md:text-sm font-medium text-[#e8dcc8] mb-0.5 pr-6">{cell.name}</h4>
       <p className="text-[10px] md:text-xs text-[#8a8070] hidden sm:block">{cell.subtitle}</p>
 
-      {/* Score bar */}
       <div className="h-1 bg-[#1c1f26] rounded-full mt-2 md:mt-3 overflow-hidden">
         <motion.div
           initial={{ width: 0 }}
@@ -600,7 +648,6 @@ function NineGridCell({ cell, index, isExpanded, onToggle }: {
         />
       </div>
 
-      {/* One-liner on larger screens */}
       <p className="text-[10px] text-[#a09882] mt-1.5 leading-tight line-clamp-2 hidden md:block">{cell.oneLiner}</p>
     </motion.button>
   );
@@ -650,7 +697,6 @@ function NineGridExpandedDetail({ cells, expandedId }: { cells: GridCell[]; expa
         className="overflow-hidden"
       >
         <div className="mt-2 p-5 border bg-[#252830]/50" style={{ borderColor: `${expandedCell.color}20` }}>
-          {/* Header */}
           <div className="flex items-center gap-3 mb-4">
             <span className="text-2xl">{expandedCell.icon}</span>
             <div className="flex-1">
@@ -666,12 +712,10 @@ function NineGridExpandedDetail({ cells, expandedId }: { cells: GridCell[]; expa
             </div>
           </div>
 
-          {/* Detail */}
           <div className="p-3 border mb-4" style={{ borderColor: `${expandedCell.color}15`, background: `${expandedCell.color}08` }}>
             <p className="text-sm text-[#e0d5c1] leading-relaxed">{expandedCell.detail}</p>
           </div>
 
-          {/* Tips */}
           <div className="space-y-2">
             {expandedCell.tips.map((tip, j) => (
               <div key={j} className="flex gap-2">

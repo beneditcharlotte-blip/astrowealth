@@ -13,7 +13,7 @@ vi.mock("./_core/llm", () => ({
         index: 0,
         message: {
           role: "assistant",
-          content: "## 你是什么样的赚钱人\n\n你是一个靠实力赚钱的人。\n\n## 你的人生财富时间表\n\n### 18-25岁（2008-2015年）：起步期\n\n这是起步阶段。\n\n## 最后，记住这三句话\n\n**1. 坚持定投**\n**2. 学会说不**\n**3. 健康第一**",
+          content: "## 你的财富基因画像\n\n你的贵人运是S级，这意味着你赚钱最快的方式不是自己埋头苦干。你的金钱直觉达到A级，对钱有天然的敏感度。\n\n## 你的钱会从哪里来\n\n**合作赚钱**\n你适合做资源整合者。\n\n## 你的人生财富时间表\n\n### 25-30岁（2015-2020年）：积累期\n\n**你的状态**：这是你打基础的阶段。\n**这个阶段必须做的事**：\n1. 每月定投3000元指数基金\n2. 考取一个专业证书\n3. 建立3个核心人脉\n\n**绝对不能踩的坑**：不要碰个股\n\n## 给你的三条铁律\n\n**1. 先存后花** —— 每月收入的20%强制储蓄\n**2. 借力打力** —— 你的贵人运是最大的资产\n**3. 慢就是快** —— 35岁前不碰高风险投资",
         },
         finish_reason: "stop",
       },
@@ -82,7 +82,7 @@ describe("wealth.generateReport", () => {
     expect(result.report).toBeDefined();
     expect(typeof result.report).toBe("string");
     expect(result.report.length).toBeGreaterThan(0);
-    expect(result.report).toContain("赚钱");
+    expect(result.report).toContain("财富");
   });
 
   it("accepts optional personalityTitle, personalityTagline, and gridSummary", async () => {
