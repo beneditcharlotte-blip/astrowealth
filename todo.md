@@ -17,3 +17,9 @@
 - [x] Update LLM report to generate life-stage timeline advice
 - [x] Remove astrology terminology from overview report
 - [x] Test and checkpoint
+- [x] Wealth Personality system - derive personality type from analysis data
+- [x] Achievement Badge system - unlock badges based on dimension scores
+- [x] Interactive Timeline component - visualize life wealth stages with color coding
+- [x] Integrate all three features into ResultPage
+- [x] Update LLM prompt to incorporate personality and timeline
+- [x] Write tests and save checkpoint

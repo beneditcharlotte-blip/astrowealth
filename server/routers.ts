@@ -56,6 +56,8 @@ export const appRouter = router({
           step4: z.number(),
           step5: z.number(),
         }),
+        personalityTitle: z.string().optional(),
+        personalityTagline: z.string().optional(),
       }))
       .mutation(async ({ input }) => {
         const prompt = buildReportPrompt(input);
@@ -140,6 +142,8 @@ function buildReportPrompt(input: {
   challenges: string[];
   keyPlanets: Array<{ name: string; sign: string; house: number; dignity: string; role: string }>;
   scores: { step1: number; step2: number; step3: number; step4: number; step5: number };
+  personalityTitle?: string;
+  personalityTagline?: string;
 }): string {
   const { birthInfo, gradeLabel, gradeName, totalScore } = input;
   
@@ -156,6 +160,7 @@ function buildReportPrompt(input: {
 【财富潜力评级】
 等级：${gradeLabel}（${gradeName}）
 综合评分：${totalScore}/100
+财富人格：${input.personalityTitle || '未知'}${input.personalityTagline ? `（${input.personalityTagline}）` : ''}
 
 【各维度评分（满分100）】
 赚钱天赋：${input.scores.step1}

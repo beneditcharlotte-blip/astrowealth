@@ -13,7 +13,7 @@ vi.mock("./_core/llm", () => ({
         index: 0,
         message: {
           role: "assistant",
-          content: "## 总体概述\n\n这是一份测试报告。\n\n## 财富天赋\n\n你的金星落在金牛座，这是非常好的配置。",
+          content: "## 你的财富基因\n\n这是一份测试报告。\n\n## 你的人生财富时间表\n\n### 18-25岁：起步期\n\n这是起步阶段。\n\n## 给你的三条核心建议\n\n1. 建议一\n2. 建议二\n3. 建议三",
         },
         finish_reason: "stop",
       },
@@ -45,8 +45,8 @@ const sampleInput = {
     minute: 30,
   },
   grade: "A8",
-  gradeLabel: "A8+",
-  gradeName: "优良财星",
+  gradeLabel: "A8",
+  gradeName: "千万级",
   totalScore: 65,
   ascSign: "天蝎座",
   mcSign: "狮子座",
@@ -55,8 +55,8 @@ const sampleInput = {
   step3Summary: "吉相位3个，挑战相位1个，财富流动整体顺畅。",
   step4Summary: "二宫主星飞入第10宫（excellent）；金星飞入第2宫（excellent）",
   step5Summary: "中天落在狮子座，事业与财富高度联动。",
-  strengths: ["核心财富征象星先天状态优秀", "多重吉相位构成财富网络"],
-  challenges: ["部分财星飞入挑战宫位"],
+  strengths: ["赚钱天赋强，对金钱有天然的敏感度", "多个有利因素互相配合"],
+  challenges: ["部分方向需要更多耐心"],
   keyPlanets: [
     { name: "金星", sign: "金牛座", house: 2, dignity: "入庙", role: "天然财富征象星" },
     { name: "木星", sign: "巨蟹座", house: 4, dignity: "耀升", role: "天然扩张征象星" },
@@ -82,14 +82,40 @@ describe("wealth.generateReport", () => {
     expect(result.report).toBeDefined();
     expect(typeof result.report).toBe("string");
     expect(result.report.length).toBeGreaterThan(0);
-    expect(result.report).toContain("总体概述");
+    expect(result.report).toContain("财富基因");
+  });
+
+  it("accepts optional personalityTitle and personalityTagline", async () => {
+    const ctx = createPublicContext();
+    const caller = appRouter.createCaller(ctx);
+
+    const result = await caller.wealth.generateReport({
+      ...sampleInput,
+      personalityTitle: "社交型收割者",
+      personalityTagline: "人脉就是钱脉",
+    });
+
+    expect(result).toBeDefined();
+    expect(result.report).toBeDefined();
+    expect(typeof result.report).toBe("string");
+    expect(result.report.length).toBeGreaterThan(0);
+  });
+
+  it("works without optional personality fields", async () => {
+    const ctx = createPublicContext();
+    const caller = appRouter.createCaller(ctx);
+
+    // No personalityTitle or personalityTagline
+    const result = await caller.wealth.generateReport(sampleInput);
+
+    expect(result).toBeDefined();
+    expect(result.report).toBeDefined();
   });
 
   it("validates input schema - rejects missing required fields", async () => {
     const ctx = createPublicContext();
     const caller = appRouter.createCaller(ctx);
 
-    // Missing birthInfo should throw
     await expect(
       caller.wealth.generateReport({
         ...sampleInput,
