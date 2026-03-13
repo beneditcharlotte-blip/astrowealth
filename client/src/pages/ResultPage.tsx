@@ -1,10 +1,10 @@
 /**
  * 结果报告页
- * - 财富人格标签
+ * - 财富人格标签 + 等级
  * - 成就徽章系统
- * - 交互式人生财富时间轴
  * - 综合报告：LLM 按人生阶段时间表生成
- * - 详细解读：通俗易懂的用户友好展示
+ * - 详细解读：九宫格展示（先天优势 + 后天努力）
+ * - 交互式人生财富时间轴
  */
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useLocation } from 'wouter';
@@ -14,6 +14,7 @@ import { WealthAssessment } from '@/lib/wealth/assessment';
 import { deriveWealthPersonality, WealthPersonality } from '@/lib/wealth/personality';
 import { computeBadges, Badge, getRarityName } from '@/lib/wealth/badges';
 import { generateTimeline, TimelineStage } from '@/lib/wealth/timeline';
+import { computeNineGrid, GridCell, NineGridResult, getRatingLabel, GridRating } from '@/lib/wealth/nineGrid';
 import { trpc } from '@/lib/trpc';
 import { Streamdown } from 'streamdown';
 
@@ -24,16 +25,6 @@ const GRADE_COLORS: Record<string, string> = {
   'A7': '#9a8050',
   'A6': '#7a6a50',
 };
-
-// 六步详析 — 用户友好的标题和描述
-const USER_FRIENDLY_STEPS = [
-  { icon: '💰', title: '你的赚钱天赋', subtitle: '你天生擅长通过什么方式赚钱', color: '#d4a843' },
-  { icon: '🔋', title: '你的财富能量', subtitle: '你的赚钱潜力有多大', color: '#c49a3e' },
-  { icon: '🌊', title: '你的财运流动', subtitle: '钱来钱去的顺畅程度', color: '#b8963e' },
-  { icon: '🎯', title: '你的发财方向', subtitle: '在哪个领域最容易赚到钱', color: '#9a8050' },
-  { icon: '📈', title: '你的事业财运', subtitle: '职业发展和收入增长的关系', color: '#7a8a5c' },
-  { icon: '🏆', title: '你的财富总评', subtitle: '综合所有因素的最终结论', color: '#d4a843' },
-];
 
 export default function ResultPage() {
   const [, navigate] = useLocation();
@@ -174,9 +165,7 @@ function PersonalityCard({ personality }: { personality: WealthPersonality }) {
       className="p-6 border bg-[#252830]/30 relative overflow-hidden"
       style={{ borderColor: `${personality.color}30` }}
     >
-      {/* Background glow */}
       <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-5" style={{ background: personality.color, filter: 'blur(40px)' }} />
-
       <div className="relative">
         <div className="flex items-center gap-3 mb-3">
           <span className="text-3xl">{personality.emoji}</span>
@@ -187,22 +176,15 @@ function PersonalityCard({ personality }: { personality: WealthPersonality }) {
             <p className="text-xs text-[#8a8070]">{personality.subtitle}</p>
           </div>
         </div>
-
         <p className="text-sm font-medium mb-3" style={{ color: personality.color }}>
           「{personality.tagline}」
         </p>
-
         <p className="text-sm text-[#a09882] leading-relaxed mb-4">
           {personality.description}
         </p>
-
         <div className="flex flex-wrap gap-2">
           {personality.tags.map((tag, i) => (
-            <span
-              key={i}
-              className="text-xs px-2.5 py-1 border"
-              style={{ borderColor: `${personality.color}30`, color: personality.color }}
-            >
+            <span key={i} className="text-xs px-2.5 py-1 border" style={{ borderColor: `${personality.color}30`, color: personality.color }}>
               {tag}
             </span>
           ))}
@@ -243,11 +225,9 @@ function BadgesSection({ badges, unlockedBadges, showAll, onToggle }: {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: i * 0.04 }}
             className={`group relative p-3 border text-center transition-all cursor-default ${
-              badge.unlocked
-                ? 'bg-[#252830]/50 hover:bg-[#252830]/80'
-                : 'bg-[#1c1f26]/50 opacity-40'
+              badge.unlocked ? 'bg-[#252830]/50 hover:bg-[#252830]/80' : 'bg-[#1c1f26]/50 opacity-40'
             }`}
-            style={{ borderColor: badge.unlocked ? `${badge.rarityColor}25` : '#333' }}
+            style={{ borderColor: badge.unlocked ? `${badge.rarityColor}25` : 'rgba(184,150,62,0.06)' }}
             title={badge.unlocked ? badge.description : `未解锁：${badge.unlockHint}`}
           >
             <div className={`text-2xl mb-1 ${badge.unlocked ? '' : 'grayscale'}`}>
@@ -257,8 +237,6 @@ function BadgesSection({ badges, unlockedBadges, showAll, onToggle }: {
             <div className="text-[9px]" style={{ color: badge.unlocked ? badge.rarityColor : '#555' }}>
               {getRarityName(badge.rarity)}
             </div>
-
-            {/* Tooltip on hover */}
             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-[#1c1f26] border border-[#b8963e]/20 text-left opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20">
               <p className="text-xs text-[#e0d5c1] mb-1">{badge.name}</p>
               <p className="text-[10px] text-[#8a8070] leading-relaxed">
@@ -279,6 +257,7 @@ function OverviewTab({ chart, assessment }: { chart: ChartData; assessment: Weal
   const [error, setError] = useState<string | null>(null);
   const timeline = useMemo(() => generateTimeline(assessment, chart.birthInfo.year), [assessment, chart]);
   const personality = useMemo(() => deriveWealthPersonality(assessment, chart), [assessment, chart]);
+  const nineGrid = useMemo(() => computeNineGrid(assessment, chart), [assessment, chart]);
 
   const generateMutation = trpc.wealth.generateReport.useMutation({
     onSuccess: (data) => {
@@ -294,6 +273,11 @@ function OverviewTab({ chart, assessment }: { chart: ChartData; assessment: Weal
   });
 
   const buildMutationInput = useCallback(() => {
+    // 构建更具体的数据，让 LLM 能生成个性化内容
+    const gridSummary = nineGrid.allCells.map(cell =>
+      `${cell.name}（${cell.rating}级，${cell.rawScore}分）：${cell.oneLiner}`
+    ).join('\n');
+
     const step1Summary = `${assessment.step1.house2.description} ${assessment.step1.house8.description}`;
     const step2Summary = `整体先天强度：${assessment.step2.overallStrengthCn}。${assessment.step2.dignities.map(d => `${d.planet.nameCn}${d.statusCn}`).join('，')}`;
     const step3Summary = `${assessment.step3.wealthNetwork} 吉相位${assessment.step3.harmoniousAspects.length}个，挑战相位${assessment.step3.challengingAspects.length}个`;
@@ -314,8 +298,9 @@ function OverviewTab({ chart, assessment }: { chart: ChartData; assessment: Weal
       scores: { step1: assessment.step1.score, step2: assessment.step2.score, step3: assessment.step3.score, step4: assessment.step4.score, step5: assessment.step5.score },
       personalityTitle: personality.title,
       personalityTagline: personality.tagline,
+      gridSummary,
     };
-  }, [chart, assessment, personality]);
+  }, [chart, assessment, personality, nineGrid]);
 
   useEffect(() => {
     const cached = sessionStorage.getItem('llmReport');
@@ -396,35 +381,23 @@ function InteractiveTimeline({ stages }: { stages: TimelineStage[] }) {
   const [activeStage, setActiveStage] = useState<string | null>(null);
   const currentStage = stages.find(s => s.isCurrent);
 
-  // Auto-open current stage
   useEffect(() => {
     if (currentStage) setActiveStage(currentStage.id);
   }, [currentStage]);
 
   return (
     <div className="mt-4 relative">
-      {/* Timeline line */}
       <div className="absolute left-5 top-0 bottom-0 w-px bg-gradient-to-b from-[#b8963e]/30 via-[#b8963e]/15 to-transparent hidden md:block" />
-
       <div className="space-y-3">
         {stages.map((stage, i) => {
           const isActive = activeStage === stage.id;
           const statusLabel = stage.status === 'opportunity' ? '机遇期' : stage.status === 'stable' ? '平稳期' : '注意期';
 
           return (
-            <motion.div
-              key={stage.id}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.08 }}
-            >
+            <motion.div key={stage.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.08 }}>
               <button
                 onClick={() => setActiveStage(isActive ? null : stage.id)}
-                className={`w-full text-left transition-all ${
-                  stage.isCurrent
-                    ? 'border-l-2 md:border-l-0'
-                    : ''
-                }`}
+                className={`w-full text-left transition-all ${stage.isCurrent ? 'border-l-2 md:border-l-0' : ''}`}
                 style={stage.isCurrent ? { borderColor: stage.statusColor } : {}}
               >
                 <div className={`flex items-center gap-4 p-4 border transition-all ${
@@ -432,17 +405,12 @@ function InteractiveTimeline({ stages }: { stages: TimelineStage[] }) {
                 } ${stage.isPast ? 'opacity-60' : ''}`}
                   style={{ borderColor: isActive ? `${stage.statusColor}40` : 'rgba(184,150,62,0.08)' }}
                 >
-                  {/* Timeline dot (desktop) */}
                   <div className="hidden md:flex items-center justify-center w-10 h-10 rounded-full border-2 flex-shrink-0"
                     style={{ borderColor: stage.statusColor, background: isActive ? `${stage.statusColor}15` : 'transparent' }}
                   >
                     <span className="text-lg">{stage.icon}</span>
                   </div>
-
-                  {/* Mobile icon */}
                   <span className="text-xl md:hidden flex-shrink-0">{stage.icon}</span>
-
-                  {/* Content */}
                   <div className="flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h4 className="text-sm font-medium text-[#e8dcc8]">{stage.name}</h4>
@@ -457,37 +425,20 @@ function InteractiveTimeline({ stages }: { stages: TimelineStage[] }) {
                     </div>
                     <p className="text-xs text-[#8a8070] mt-0.5">{stage.ageRange} · {stage.yearRange}</p>
                   </div>
-
-                  {/* Fortune bar */}
                   <div className="w-20 flex-shrink-0 hidden sm:block">
                     <div className="h-1.5 bg-[#1c1f26] rounded-full overflow-hidden">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${stage.fortuneLevel}%` }}
-                        transition={{ duration: 0.8, delay: i * 0.1 }}
-                        className="h-full rounded-full"
-                        style={{ background: stage.statusColor }}
-                      />
+                      <motion.div initial={{ width: 0 }} animate={{ width: `${stage.fortuneLevel}%` }} transition={{ duration: 0.8, delay: i * 0.1 }} className="h-full rounded-full" style={{ background: stage.statusColor }} />
                     </div>
                     <p className="text-[10px] text-right mt-0.5" style={{ color: stage.statusColor }}>{stage.fortuneLevel}</p>
                   </div>
-
-                  {/* Expand arrow */}
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className={`text-[#8a8070] transition-transform flex-shrink-0 ${isActive ? 'rotate-180' : ''}`}>
                     <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="1.5" />
                   </svg>
                 </div>
               </button>
-
               <AnimatePresence>
                 {isActive && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="overflow-hidden"
-                  >
+                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3 }} className="overflow-hidden">
                     <div className="p-5 border border-t-0 bg-[#252830]/40" style={{ borderColor: `${stage.statusColor}20` }}>
                       <p className="text-sm text-[#e0d5c1] leading-relaxed mb-4">{stage.summary}</p>
                       <div className="space-y-2">
@@ -530,93 +481,60 @@ function QuickCard({ icon, title, items, color }: { icon: string; title: string;
   );
 }
 
-// ========== Detail Tab ==========
+// ========== Detail Tab — Nine Grid ==========
 function DetailTab({ chart, assessment }: { chart: ChartData; assessment: WealthAssessment }) {
-  const [expandedStep, setExpandedStep] = useState<number | null>(null);
-  const stepContents = getPlainLanguageSteps(assessment);
+  const nineGrid = useMemo(() => computeNineGrid(assessment, chart), [assessment, chart]);
+  const personality = useMemo(() => deriveWealthPersonality(assessment, chart), [assessment, chart]);
+  const [expandedCell, setExpandedCell] = useState<string | null>(null);
 
   return (
     <div className="space-y-10">
-      {/* 总览评分 */}
+      {/* Nine Grid */}
       <div>
-        <SectionTitle title="六大维度评分" />
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-4">
-          {USER_FRIENDLY_STEPS.map((step, i) => {
-            const score = stepContents[i].score;
-            const scoreColor = score >= 70 ? '#7a8a5c' : score >= 40 ? '#b8963e' : '#c47830';
-            return (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.08 }}
-                onClick={() => setExpandedStep(expandedStep === i ? null : i)}
-                className="p-4 border border-[#b8963e]/10 bg-[#252830]/40 cursor-pointer hover:border-[#b8963e]/25 transition-all"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xl">{step.icon}</span>
-                  <span className="text-lg font-bold" style={{ color: scoreColor, fontFamily: 'var(--font-display)' }}>{score}</span>
-                </div>
-                <h4 className="text-sm text-[#e8dcc8] font-medium mb-0.5">{step.title}</h4>
-                <p className="text-xs text-[#8a8070]">{step.subtitle}</p>
-                <div className="h-1.5 bg-[#1c1f26] rounded-full mt-3 overflow-hidden">
-                  <motion.div initial={{ width: 0 }} animate={{ width: `${score}%` }} transition={{ duration: 0.8, delay: i * 0.1 }} className="h-full rounded-full" style={{ background: scoreColor }} />
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
-      </div>
+        <SectionTitle title="你的财富九宫格" />
+        <p className="text-sm text-[#8a8070] mt-2 mb-6">点击任意格子查看详细解读</p>
 
-      {/* 详细解读 */}
-      <div>
-        <SectionTitle title="逐项解读" />
-        <div className="space-y-3 mt-4">
-          {USER_FRIENDLY_STEPS.map((step, i) => (
-            <motion.div key={i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.05 }}>
-              <button
-                onClick={() => setExpandedStep(expandedStep === i ? null : i)}
-                className="w-full text-left p-4 border border-[#b8963e]/10 bg-[#252830]/30 hover:border-[#b8963e]/25 transition-all"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xl">{step.icon}</span>
-                    <div>
-                      <h4 className="text-sm text-[#e8dcc8] font-medium">{step.title}</h4>
-                      <p className="text-xs text-[#8a8070] mt-0.5">{stepContents[i].oneLiner}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <ScorePill score={stepContents[i].score} />
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className={`text-[#8a8070] transition-transform ${expandedStep === i ? 'rotate-180' : ''}`}>
-                      <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="1.5" />
-                    </svg>
-                  </div>
-                </div>
-              </button>
-              <AnimatePresence>
-                {expandedStep === i && (
-                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3 }} className="overflow-hidden">
-                    <div className="p-5 border border-t-0 border-[#b8963e]/10 bg-[#252830]/50">
-                      <div className="p-3 border border-[#b8963e]/15 bg-[#b8963e]/5 mb-4">
-                        <p className="text-sm text-[#e0d5c1] leading-relaxed">{stepContents[i].conclusion}</p>
-                      </div>
-                      <div className="space-y-3">
-                        {stepContents[i].points.map((point, j) => (
-                          <div key={j} className="flex gap-3">
-                            <span className={`mt-0.5 text-sm flex-shrink-0 ${point.type === 'good' ? 'text-[#7a8a5c]' : point.type === 'caution' ? 'text-[#c47830]' : 'text-[#b8963e]'}`}>
-                              {point.type === 'good' ? '✓' : point.type === 'caution' ? '!' : '→'}
-                            </span>
-                            <p className="text-sm text-[#a09882] leading-relaxed">{point.text}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          ))}
+        {/* 先天优势行 */}
+        <div className="mb-2">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-3 h-3 rounded-full bg-gradient-to-br from-[#d4a843] to-[#b8963e]" />
+            <span className="text-xs text-[#b8963e] tracking-wider" style={{ fontFamily: 'var(--font-display)' }}>先天优势 · 你天生自带的财富基因</span>
+          </div>
+          <div className="grid grid-cols-3 gap-2 md:gap-3">
+            {nineGrid.innate.map((cell, i) => (
+              <NineGridCell key={cell.id} cell={cell} index={i} isExpanded={expandedCell === cell.id} onToggle={() => setExpandedCell(expandedCell === cell.id ? null : cell.id)} />
+            ))}
+          </div>
+          <NineGridExpandedDetail cells={nineGrid.innate} expandedId={expandedCell} />
+        </div>
+
+        {/* 连接层 */}
+        <div className="mb-2">
+          <div className="flex items-center gap-2 mb-3 mt-4">
+            <div className="w-3 h-3 rounded-full bg-gradient-to-br from-[#8a8070] to-[#6b6358]" />
+            <span className="text-xs text-[#8a8070] tracking-wider" style={{ fontFamily: 'var(--font-display)' }}>人际连接 · 先天与后天的桥梁</span>
+          </div>
+          <div className="grid grid-cols-3 gap-2 md:gap-3">
+            <NineGridCell cell={nineGrid.bridge[0]!} index={0} isExpanded={expandedCell === nineGrid.bridge[0]!.id} onToggle={() => setExpandedCell(expandedCell === nineGrid.bridge[0]!.id ? null : nineGrid.bridge[0]!.id)} />
+            {/* 中间格：财富人格 */}
+            <PersonalityCenterCell personality={personality} />
+            <NineGridCell cell={nineGrid.bridge[2]!} index={2} isExpanded={expandedCell === nineGrid.bridge[2]!.id} onToggle={() => setExpandedCell(expandedCell === nineGrid.bridge[2]!.id ? null : nineGrid.bridge[2]!.id)} />
+          </div>
+          <NineGridExpandedDetail cells={[nineGrid.bridge[0]!, nineGrid.bridge[2]!]} expandedId={expandedCell} />
+        </div>
+
+        {/* 后天努力行 */}
+        <div>
+          <div className="flex items-center gap-2 mb-3 mt-4">
+            <div className="w-3 h-3 rounded-full bg-gradient-to-br from-[#6b8ab8] to-[#5a7aa8]" />
+            <span className="text-xs text-[#6b8ab8] tracking-wider" style={{ fontFamily: 'var(--font-display)' }}>后天努力 · 你可以掌控的财富方向</span>
+          </div>
+          <div className="grid grid-cols-3 gap-2 md:gap-3">
+            {nineGrid.effort.map((cell, i) => (
+              <NineGridCell key={cell.id} cell={cell} index={i} isExpanded={expandedCell === cell.id} onToggle={() => setExpandedCell(expandedCell === cell.id ? null : cell.id)} />
+            ))}
+          </div>
+          <NineGridExpandedDetail cells={nineGrid.effort} expandedId={expandedCell} />
         </div>
       </div>
 
@@ -631,13 +549,140 @@ function DetailTab({ chart, assessment }: { chart: ChartData; assessment: Wealth
   );
 }
 
-// ========== Score Pill ==========
-function ScorePill({ score }: { score: number }) {
-  const color = score >= 70 ? '#7a8a5c' : score >= 40 ? '#b8963e' : '#c47830';
+// ========== Nine Grid Cell ==========
+const RATING_BG: Record<GridRating, string> = {
+  S: 'from-[#d4a843]/15 to-[#d4a843]/5',
+  A: 'from-[#b8963e]/12 to-[#b8963e]/4',
+  B: 'from-[#7a8a5c]/10 to-[#7a8a5c]/3',
+  C: 'from-[#8a8070]/8 to-[#8a8070]/3',
+  D: 'from-[#6b6358]/8 to-[#6b6358]/3',
+};
+
+function NineGridCell({ cell, index, isExpanded, onToggle }: {
+  cell: GridCell;
+  index: number;
+  isExpanded: boolean;
+  onToggle: () => void;
+}) {
   return (
-    <span className="text-xs px-2 py-0.5 border font-medium" style={{ borderColor: `${color}40`, color, fontFamily: 'var(--font-display)' }}>
-      {score}分
-    </span>
+    <motion.button
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay: index * 0.06 }}
+      onClick={onToggle}
+      className={`relative p-3 md:p-4 border text-left transition-all hover:scale-[1.02] ${
+        isExpanded ? 'ring-1' : ''
+      } bg-gradient-to-br ${RATING_BG[cell.rating]}`}
+      style={{
+        borderColor: isExpanded ? `${cell.color}60` : `${cell.color}20`,
+        // ring color handled via className
+      }}
+    >
+      {/* Rating badge */}
+      <div className="absolute top-2 right-2 w-6 h-6 md:w-7 md:h-7 flex items-center justify-center text-xs md:text-sm font-bold rounded-sm"
+        style={{ background: `${cell.color}20`, color: cell.color, fontFamily: 'var(--font-display)' }}
+      >
+        {cell.rating}
+      </div>
+
+      <span className="text-xl md:text-2xl block mb-1 md:mb-2">{cell.icon}</span>
+      <h4 className="text-xs md:text-sm font-medium text-[#e8dcc8] mb-0.5 pr-6">{cell.name}</h4>
+      <p className="text-[10px] md:text-xs text-[#8a8070] hidden sm:block">{cell.subtitle}</p>
+
+      {/* Score bar */}
+      <div className="h-1 bg-[#1c1f26] rounded-full mt-2 md:mt-3 overflow-hidden">
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${cell.rawScore}%` }}
+          transition={{ duration: 0.8, delay: index * 0.08 }}
+          className="h-full rounded-full"
+          style={{ background: cell.color }}
+        />
+      </div>
+
+      {/* One-liner on larger screens */}
+      <p className="text-[10px] text-[#a09882] mt-1.5 leading-tight line-clamp-2 hidden md:block">{cell.oneLiner}</p>
+    </motion.button>
+  );
+}
+
+// ========== Personality Center Cell ==========
+function PersonalityCenterCell({ personality }: { personality: WealthPersonality }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay: 0.1 }}
+      className="relative p-3 md:p-4 border text-center overflow-hidden"
+      style={{
+        borderColor: `${personality.color}40`,
+        background: `linear-gradient(135deg, ${personality.color}10, ${personality.color}05)`,
+      }}
+    >
+      <div className="absolute inset-0 opacity-5" style={{ background: `radial-gradient(circle at center, ${personality.color}, transparent 70%)` }} />
+      <div className="relative">
+        <span className="text-2xl md:text-3xl block mb-1">{personality.emoji}</span>
+        <h4 className="text-xs md:text-sm font-bold mb-0.5" style={{ color: personality.color, fontFamily: 'var(--font-display)' }}>
+          {personality.title}
+        </h4>
+        <p className="text-[10px] text-[#8a8070] hidden sm:block">{personality.subtitle}</p>
+        <p className="text-[10px] mt-1 leading-tight hidden md:block" style={{ color: `${personality.color}cc` }}>
+          「{personality.tagline}」
+        </p>
+      </div>
+    </motion.div>
+  );
+}
+
+// ========== Nine Grid Expanded Detail ==========
+function NineGridExpandedDetail({ cells, expandedId }: { cells: GridCell[]; expandedId: string | null }) {
+  const expandedCell = cells.find(c => c && c.id === expandedId);
+  if (!expandedCell) return null;
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        key={expandedCell.id}
+        initial={{ height: 0, opacity: 0 }}
+        animate={{ height: 'auto', opacity: 1 }}
+        exit={{ height: 0, opacity: 0 }}
+        transition={{ duration: 0.3 }}
+        className="overflow-hidden"
+      >
+        <div className="mt-2 p-5 border bg-[#252830]/50" style={{ borderColor: `${expandedCell.color}20` }}>
+          {/* Header */}
+          <div className="flex items-center gap-3 mb-4">
+            <span className="text-2xl">{expandedCell.icon}</span>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <h4 className="text-base font-medium text-[#e8dcc8]" style={{ fontFamily: 'var(--font-display)' }}>{expandedCell.name}</h4>
+                <span className="text-xs px-2 py-0.5 font-bold rounded-sm"
+                  style={{ background: `${expandedCell.color}20`, color: expandedCell.color, fontFamily: 'var(--font-display)' }}
+                >
+                  {expandedCell.rating} · {getRatingLabel(expandedCell.rating)}
+                </span>
+              </div>
+              <p className="text-xs mt-0.5" style={{ color: expandedCell.color }}>{expandedCell.oneLiner}</p>
+            </div>
+          </div>
+
+          {/* Detail */}
+          <div className="p-3 border mb-4" style={{ borderColor: `${expandedCell.color}15`, background: `${expandedCell.color}08` }}>
+            <p className="text-sm text-[#e0d5c1] leading-relaxed">{expandedCell.detail}</p>
+          </div>
+
+          {/* Tips */}
+          <div className="space-y-2">
+            {expandedCell.tips.map((tip, j) => (
+              <div key={j} className="flex gap-2">
+                <span className="text-sm flex-shrink-0" style={{ color: expandedCell.color }}>→</span>
+                <p className="text-sm text-[#a09882] leading-relaxed">{tip}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </motion.div>
+    </AnimatePresence>
   );
 }
 
@@ -649,185 +694,4 @@ function SectionTitle({ title }: { title: string }) {
       <h3 className="text-lg text-[#e8dcc8] tracking-wider" style={{ fontFamily: 'var(--font-display)' }}>{title}</h3>
     </div>
   );
-}
-
-// ========== Plain Language Steps ==========
-interface PlainStepContent {
-  score: number;
-  oneLiner: string;
-  conclusion: string;
-  points: Array<{ text: string; type: 'good' | 'caution' | 'tip' }>;
-}
-
-function getPlainLanguageSteps(a: WealthAssessment): PlainStepContent[] {
-  return [getStep1Plain(a), getStep2Plain(a), getStep3Plain(a), getStep4Plain(a), getStep5Plain(a), getStep6Plain(a)];
-}
-
-function getStep1Plain(a: WealthAssessment): PlainStepContent {
-  const h2Planets = a.step1.house2.planetsInHouse;
-  const beneficsIn2 = h2Planets.filter(p => ['Venus', 'Jupiter'].includes(p.name));
-  let oneLiner = '', conclusion = '';
-  const points: PlainStepContent['points'] = [];
-
-  if (beneficsIn2.length > 0) {
-    oneLiner = '你天生有很强的赚钱直觉';
-    conclusion = `你天生具备很强的财富吸引力，对金钱有天然的亲和力，赚钱对你来说相对自然。`;
-    points.push({ text: '你有天生的理财直觉，对赚钱机会比较敏感', type: 'good' });
-  } else if (h2Planets.length > 0) {
-    oneLiner = '你的赚钱方式有独特之处';
-    conclusion = '你的赚钱方式可能比较独特，不走寻常路反而更容易成功。';
-    points.push({ text: '你适合用自己独特的方式赚钱，不必照搬别人的模式', type: 'tip' });
-  } else {
-    oneLiner = '你的赚钱能力取决于后天培养';
-    conclusion = '你的赚钱潜力很大程度上取决于后天的学习和努力。通过正确的方向和持续积累，完全可以建立起很好的财富基础。';
-    points.push({ text: '后天的学习和努力对你的财富增长非常关键', type: 'tip' });
-  }
-
-  a.step1.keyPlanets.forEach(kp => {
-    const dignity = kp.planet.dignity;
-    if (dignity === 'domicile' || dignity === 'exaltation') {
-      points.push({ text: `你在${getRoleSimple(kp.role)}方面有天赋，这是你的财富优势`, type: 'good' });
-    } else if (dignity === 'detriment' || dignity === 'fall') {
-      points.push({ text: `${getRoleSimple(kp.role)}方面需要多加注意和学习`, type: 'caution' });
-    }
-  });
-
-  return { score: a.step1.score, oneLiner, conclusion, points };
-}
-
-function getStep2Plain(a: WealthAssessment): PlainStepContent {
-  const strength = a.step2.overallStrength;
-  let oneLiner = '', conclusion = '';
-  const points: PlainStepContent['points'] = [];
-
-  if (strength === 'strong') {
-    oneLiner = '你的赚钱潜力很大';
-    conclusion = '你的财富能量整体很强，天生具备较强的赚钱潜力，只要找到正确的方向，财富增长会比较顺利。';
-    points.push({ text: '你的财富潜力起点高，好好利用这个优势', type: 'good' });
-  } else if (strength === 'moderate') {
-    oneLiner = '你的赚钱潜力中等偏上';
-    conclusion = '你的财富能量处于中等水平，有一定的赚钱基础，需要通过后天的努力和正确的策略来充分激发潜力。';
-    points.push({ text: '你有不错的基础，关键是找到适合自己的发力方向', type: 'tip' });
-  } else {
-    oneLiner = '你的赚钱潜力需要后天激发';
-    conclusion = '你的财富能量目前偏弱，但很多成功人士的先天条件并不突出，关键在于后天的学习、努力和正确的策略。';
-    points.push({ text: '不要灰心，后天努力可以大幅提升你的财富能力', type: 'tip' });
-  }
-
-  a.step2.dignities.forEach(d => {
-    if (d.status === 'domicile' || d.status === 'exaltation') {
-      points.push({ text: `你在${d.planet.nameCn === '金星' ? '个人理财' : d.planet.nameCn === '木星' ? '投资扩张' : '日常收支'}方面有天然优势`, type: 'good' });
-    } else if (d.status === 'detriment' || d.status === 'fall') {
-      points.push({ text: `${d.planet.nameCn === '金星' ? '个人理财' : d.planet.nameCn === '木星' ? '大额投资' : '日常开支'}方面需要更加谨慎`, type: 'caution' });
-    }
-  });
-
-  return { score: a.step2.score, oneLiner, conclusion, points };
-}
-
-function getStep3Plain(a: WealthAssessment): PlainStepContent {
-  const harmCount = a.step3.harmoniousAspects.length;
-  const challCount = a.step3.challengingAspects.length;
-  let oneLiner = '', conclusion = '';
-  const points: PlainStepContent['points'] = [];
-
-  if (harmCount >= 3 && challCount <= 1) {
-    oneLiner = '你的财运非常顺畅';
-    conclusion = '你的财运流动性非常好，赚钱的渠道多且畅通，不同的收入来源之间能够互相促进。';
-    points.push({ text: '你的多个收入来源之间能互相促进，形成良性循环', type: 'good' });
-  } else if (harmCount >= challCount) {
-    oneLiner = '你的财运整体顺畅，偶有波折';
-    conclusion = `你的财运整体流动性不错，有${harmCount}个有利因素在帮你赚钱，同时也有${challCount}个因素可能带来一些阻力。`;
-    points.push({ text: '整体财运不错，但要注意防范偶尔出现的财务波动', type: 'tip' });
-  } else {
-    oneLiner = '你的财运有些波折，需要更多耐心';
-    conclusion = `你的财务流动性面临一些挑战，有${challCount}个因素可能会给你的赚钱过程带来阻力或波动。`;
-    points.push({ text: '建议做好财务规划，为可能的波动留出缓冲', type: 'caution' });
-  }
-
-  if (harmCount > 0) points.push({ text: `你有${harmCount}个有利的财运因素在帮助你`, type: 'good' });
-  if (challCount > 0) points.push({ text: `有${challCount}个因素可能带来财务上的挑战，提前了解就能更好应对`, type: 'caution' });
-
-  return { score: a.step3.score, oneLiner, conclusion, points };
-}
-
-function getStep4Plain(a: WealthAssessment): PlainStepContent {
-  const flyIns = [a.step4.house2RulerFlyIn, a.step4.venusFlyIn, a.step4.jupiterFlyIn, a.step4.moonFlyIn];
-  const excellentOnes = flyIns.filter(f => f.quality === 'excellent');
-  let oneLiner = '', conclusion = '';
-  const points: PlainStepContent['points'] = [];
-
-  if (excellentOnes.length >= 2) {
-    oneLiner = '你有多个很好的发财方向';
-    conclusion = '你的财富实现路径非常清晰，有多个领域都适合你去发展和赚钱。';
-  } else if (excellentOnes.length >= 1) {
-    oneLiner = '你有一个明确的发财方向';
-    conclusion = '你有一个比较明确的最佳赚钱方向，集中精力深耕更容易获得丰厚回报。';
-  } else {
-    oneLiner = '你需要多尝试找到最适合的方向';
-    conclusion = '你的最佳赚钱方向还不太明确，可能需要多尝试不同的领域。';
-  }
-
-  flyIns.forEach(f => {
-    const area = getHouseArea(f.house);
-    if (f.quality === 'excellent') points.push({ text: `${area}是你的财富优势领域，在这个方向发力回报最大`, type: 'good' });
-    else if (f.quality === 'challenging') points.push({ text: `在${area}方面赚钱可能需要更多耐心和策略`, type: 'caution' });
-    else points.push({ text: `${area}方面有一定的赚钱机会，值得关注`, type: 'tip' });
-  });
-
-  return { score: a.step4.score, oneLiner, conclusion, points };
-}
-
-function getStep5Plain(a: WealthAssessment): PlainStepContent {
-  const score = a.step5.score;
-  let oneLiner = '', conclusion = '';
-  const points: PlainStepContent['points'] = [];
-
-  if (score >= 70) {
-    oneLiner = '你的事业和财富高度联动';
-    conclusion = '你的职业发展和财富增长高度联动，事业越成功赚的钱就越多。';
-    points.push({ text: '事业是你最大的财富引擎，全力以赴发展事业', type: 'good' });
-  } else if (score >= 40) {
-    oneLiner = '你的事业对财富有一定帮助';
-    conclusion = '你的职业发展和财富增长有一定的联动关系，但可能不是完全同步的。';
-    points.push({ text: '事业发展能带动收入增长，但也可以考虑其他收入渠道', type: 'tip' });
-  } else {
-    oneLiner = '你的财富来源不完全依赖事业';
-    conclusion = '你可能更适合通过副业、投资、创业等方式来增加收入。';
-    points.push({ text: '不要把所有鸡蛋放在一个篮子里，多元化收入很重要', type: 'tip' });
-  }
-
-  points.push({ text: '人生中会有几个重要的财务机遇期，要提前做好准备', type: 'tip' });
-  return { score, oneLiner, conclusion, points };
-}
-
-function getStep6Plain(a: WealthAssessment): PlainStepContent {
-  const points: PlainStepContent['points'] = [];
-  a.step6.strengths.forEach(s => points.push({ text: s, type: 'good' }));
-  a.step6.challenges.forEach(c => points.push({ text: c, type: 'caution' }));
-  a.step6.advice.forEach(adv => points.push({ text: adv, type: 'tip' }));
-
-  return {
-    score: a.totalScore,
-    oneLiner: a.step6.summary.slice(0, 30) + '...',
-    conclusion: a.step6.summary,
-    points,
-  };
-}
-
-// ========== Helpers ==========
-function getRoleSimple(role: string): string {
-  if (role.includes('财富')) return '赚钱和理财';
-  if (role.includes('扩张')) return '投资和扩展';
-  if (role.includes('福禄')) return '日常收支管理';
-  return '财务管理';
-}
-
-function getHouseArea(house: number): string {
-  const areas: Record<number, string> = {
-    1: '个人品牌和形象', 2: '个人收入和理财', 3: '学习和沟通', 4: '房产和家庭',
-    5: '投资和创意', 6: '工作和健康', 7: '合作和伙伴关系', 8: '投资回报和被动收入',
-    9: '海外发展和高等教育', 10: '事业和社会地位', 11: '人脉和社交圈', 12: '幕后工作和灵性领域',
-  };
-  return areas[house] || `第${house}个生活领域`;
 }

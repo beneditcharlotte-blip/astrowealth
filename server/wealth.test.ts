@@ -13,7 +13,7 @@ vi.mock("./_core/llm", () => ({
         index: 0,
         message: {
           role: "assistant",
-          content: "## 你的财富基因\n\n这是一份测试报告。\n\n## 你的人生财富时间表\n\n### 18-25岁：起步期\n\n这是起步阶段。\n\n## 给你的三条核心建议\n\n1. 建议一\n2. 建议二\n3. 建议三",
+          content: "## 你是什么样的赚钱人\n\n你是一个靠实力赚钱的人。\n\n## 你的人生财富时间表\n\n### 18-25岁（2008-2015年）：起步期\n\n这是起步阶段。\n\n## 最后，记住这三句话\n\n**1. 坚持定投**\n**2. 学会说不**\n**3. 健康第一**",
         },
         finish_reason: "stop",
       },
@@ -82,10 +82,10 @@ describe("wealth.generateReport", () => {
     expect(result.report).toBeDefined();
     expect(typeof result.report).toBe("string");
     expect(result.report.length).toBeGreaterThan(0);
-    expect(result.report).toContain("财富基因");
+    expect(result.report).toContain("赚钱");
   });
 
-  it("accepts optional personalityTitle and personalityTagline", async () => {
+  it("accepts optional personalityTitle, personalityTagline, and gridSummary", async () => {
     const ctx = createPublicContext();
     const caller = appRouter.createCaller(ctx);
 
@@ -93,6 +93,7 @@ describe("wealth.generateReport", () => {
       ...sampleInput,
       personalityTitle: "社交型收割者",
       personalityTagline: "人脉就是钱脉",
+      gridSummary: "家族财运（A级，72分）：你的家庭背景对财富积累有明显助力\n金钱直觉（S级，88分）：你对钱有天生的第六感\n偏财体质（B级，55分）：你偶尔会有意外之财\n贵人运（A级，75分）：你天生容易遇到帮你赚钱的贵人\n人脉经营（B级，60分）：你的社交能力够用\n职场晋升（A级，70分）：你的事业上升通道很宽\n投资修炼（C级，42分）：投资不是你的强项\n创业拼搏（B级，58分）：你可以尝试创业",
     });
 
     expect(result).toBeDefined();
@@ -101,11 +102,10 @@ describe("wealth.generateReport", () => {
     expect(result.report.length).toBeGreaterThan(0);
   });
 
-  it("works without optional personality fields", async () => {
+  it("works without optional fields", async () => {
     const ctx = createPublicContext();
     const caller = appRouter.createCaller(ctx);
 
-    // No personalityTitle or personalityTagline
     const result = await caller.wealth.generateReport(sampleInput);
 
     expect(result).toBeDefined();
