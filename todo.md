@@ -36,3 +36,10 @@
 - [x] Improve step6 strengths/challenges to reference specific grid ratings and scores
 - [x] Refine LLM prompt to require referencing specific grid ratings (S/A/B/C/D) with concrete examples
 - [x] Restructure ResultPage: AI report as premium hero section, remove tab navigation
+- [x] Move nine-grid section above AI report section
+- [x] Integrate Stripe payment for premium unlock
+- [x] Create payment database schema (purchases table)
+- [x] Create backend payment endpoints (create checkout, verify payment)
+- [x] Lock AI deep analysis content (from overview section) behind paywall
+- [x] Build paywall UI with blur overlay and unlock CTA
+- [x] Test payment flow and save checkpoint

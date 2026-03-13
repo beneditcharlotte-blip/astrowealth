@@ -1,8 +1,8 @@
 /**
  * 结果报告页 — 单页滚动式布局
  * 1. 等级 + 财富人格
- * 2. AI 深度解读（商业化核心板块，最显眼位置）
- * 3. 九宫格详细解读
+ * 2. 九宫格详细解读（移到上方）
+ * 3. AI 深度解读（商业化核心板块，从总体概述开始需付费解锁）
  * 4. 人生财富时间轴
  * 5. 成就徽章
  */
@@ -16,6 +16,8 @@ import { computeBadges, Badge, getRarityName } from '@/lib/wealth/badges';
 import { generateTimeline, TimelineStage } from '@/lib/wealth/timeline';
 import { computeNineGrid, GridCell, NineGridResult, getRatingLabel, GridRating } from '@/lib/wealth/nineGrid';
 import { trpc } from '@/lib/trpc';
+import { useAuth } from '@/_core/hooks/useAuth';
+import { getLoginUrl } from '@/const';
 import { Streamdown } from 'streamdown';
 
 const GRADE_COLORS: Record<string, string> = {
@@ -62,11 +64,11 @@ export default function ResultPage() {
       {/* 1. Grade Hero + Personality */}
       <GradeHeroSection chart={chart} assessment={assessment} gradeColor={gradeColor} />
 
-      {/* 2. AI 深度解读 — 商业化核心板块 */}
-      <AIDeepAnalysis chart={chart} assessment={assessment} />
-
-      {/* 3. 九宫格详细解读 */}
+      {/* 2. 九宫格详细解读（移到上方） */}
       <NineGridSection chart={chart} assessment={assessment} />
+
+      {/* 3. AI 深度解读 — 商业化核心板块（付费解锁） */}
+      <AIDeepAnalysis chart={chart} assessment={assessment} />
 
       {/* 4. 人生财富时间轴 */}
       <TimelineSection chart={chart} assessment={assessment} />
@@ -92,14 +94,10 @@ function GradeHeroSection({ chart, assessment, gradeColor }: { chart: ChartData;
     <section className="py-10 border-b border-[#b8963e]/10">
       <div className="container max-w-4xl">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-          {/* Birth Info */}
           <p className="text-[#8a8070] text-sm text-center mb-6">
             {chart.birthInfo.city} · {chart.birthInfo.year}年{chart.birthInfo.month}月{chart.birthInfo.day}日 {String(chart.birthInfo.hour).padStart(2, '0')}:{String(chart.birthInfo.minute).padStart(2, '0')}
           </p>
-
-          {/* Grade + Personality Side by Side */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Grade Card */}
             <div className="text-center p-6 border border-[#b8963e]/15 bg-[#252830]/30">
               <div className="text-6xl font-bold tracking-wider mb-1" style={{ fontFamily: 'var(--font-display)', color: gradeColor }}>
                 {assessment.gradeLabel}
@@ -124,8 +122,6 @@ function GradeHeroSection({ chart, assessment, gradeColor }: { chart: ChartData;
               </div>
               <p className="text-[#a09882] text-xs leading-relaxed">{assessment.gradeDescription}</p>
             </div>
-
-            {/* Personality Card */}
             <PersonalityCard personality={personality} />
           </div>
         </motion.div>
@@ -173,13 +169,34 @@ function PersonalityCard({ personality }: { personality: WealthPersonality }) {
   );
 }
 
-// ========== AI Deep Analysis — Premium Commercial Block ==========
+// ========== AI Deep Analysis — Premium Commercial Block with Paywall ==========
 function AIDeepAnalysis({ chart, assessment }: { chart: ChartData; assessment: WealthAssessment }) {
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
   const [report, setReport] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const personality = useMemo(() => deriveWealthPersonality(assessment, chart), [assessment, chart]);
   const nineGrid = useMemo(() => computeNineGrid(assessment, chart), [assessment, chart]);
+
+  // Check payment status
+  const accessQuery = trpc.payment.hasAccess.useQuery(undefined, {
+    enabled: isAuthenticated,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
+  const hasAccess = accessQuery.data?.hasAccess === true;
+
+  // Check URL for payment success
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('payment') === 'success') {
+      // Refetch access status after successful payment
+      accessQuery.refetch();
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
 
   const generateMutation = trpc.wealth.generateReport.useMutation({
     onSuccess: (data) => {
@@ -223,7 +240,9 @@ function AIDeepAnalysis({ chart, assessment }: { chart: ChartData; assessment: W
     };
   }, [chart, assessment, personality, nineGrid]);
 
+  // Auto-generate report when user has access
   useEffect(() => {
+    if (!hasAccess) return;
     const cached = sessionStorage.getItem('llmReport');
     if (cached) {
       setReport(cached);
@@ -232,8 +251,7 @@ function AIDeepAnalysis({ chart, assessment }: { chart: ChartData; assessment: W
     setIsGenerating(true);
     setError(null);
     generateMutation.mutate(buildMutationInput());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [hasAccess]);
 
   const handleRegenerate = () => {
     sessionStorage.removeItem('llmReport');
@@ -241,6 +259,26 @@ function AIDeepAnalysis({ chart, assessment }: { chart: ChartData; assessment: W
     setIsGenerating(true);
     setError(null);
     generateMutation.mutate(buildMutationInput());
+  };
+
+  // Stripe checkout
+  const checkoutMutation = trpc.payment.createCheckout.useMutation({
+    onSuccess: (data) => {
+      if (data.url) {
+        window.open(data.url, '_blank');
+      }
+    },
+    onError: (err) => {
+      console.error('Checkout error:', err);
+    },
+  });
+
+  const handleUnlock = () => {
+    if (!isAuthenticated) {
+      window.location.href = getLoginUrl();
+      return;
+    }
+    checkoutMutation.mutate({ origin: window.location.origin });
   };
 
   return (
@@ -278,75 +316,187 @@ function AIDeepAnalysis({ chart, assessment }: { chart: ChartData; assessment: W
           </p>
         </motion.div>
 
-        {/* Quick Insight Cards — 优势/挑战/建议 */}
+        {/* Quick Insight Cards — 免费可见 */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <QuickCard icon="💪" title="你的核心优势" items={assessment.step6.strengths} color="#7a8a5c" />
           <QuickCard icon="⚠️" title="需要注意的" items={assessment.step6.challenges} color="#c47830" />
           <QuickCard icon="💡" title="立刻能做的" items={assessment.step6.advice} color="#b8963e" />
         </div>
 
-        {/* AI Report Content */}
+        {/* AI Report Content — 付费解锁区域 */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
         >
           <div className="relative border border-[#b8963e]/20 bg-gradient-to-b from-[#252830]/60 to-[#1c1f26]/40">
-            {/* Top decorative bar */}
             <div className="h-px bg-gradient-to-r from-transparent via-[#b8963e]/40 to-transparent" />
 
             <div className="p-6 md:p-10">
-              {/* Regenerate button */}
-              {report && !isGenerating && (
-                <div className="flex justify-end mb-4">
-                  <button onClick={handleRegenerate} className="text-xs text-[#8a8070] hover:text-[#b8963e] transition-colors flex items-center gap-1.5 px-3 py-1.5 border border-[#b8963e]/15 hover:border-[#b8963e]/30">
-                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 7C1 3.68 3.68 1 7 1C10.32 1 13 3.68 13 7C13 10.32 10.32 13 7 13" stroke="currentColor" strokeWidth="1.2" /><path d="M1 7L3 9M1 7L3 5" stroke="currentColor" strokeWidth="1.2" /></svg>
-                    换个角度重新解读
-                  </button>
-                </div>
-              )}
+              {/* Section title */}
+              <div className="flex items-center gap-2 mb-6">
+                <div className="w-1 h-5 bg-[#b8963e]/40" />
+                <h3 className="text-lg text-[#e8dcc8] tracking-wider" style={{ fontFamily: 'var(--font-display)' }}>总体概述</h3>
+                {!hasAccess && (
+                  <span className="ml-2 text-[10px] px-2 py-0.5 bg-[#b8963e]/10 border border-[#b8963e]/30 text-[#b8963e]">
+                    付费内容
+                  </span>
+                )}
+              </div>
 
-              {isGenerating && (
-                <div className="flex flex-col items-center justify-center py-16">
-                  <div className="relative w-16 h-16 mb-6">
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
-                      className="absolute inset-0 border-2 border-[#b8963e]/10 border-t-[#b8963e]/60 rounded-full"
-                    />
-                    <motion.div
-                      animate={{ rotate: -360 }}
-                      transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-                      className="absolute inset-2 border border-[#b8963e]/10 border-b-[#b8963e]/40 rounded-full"
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="text-[#b8963e]">
-                        <path d="M10 2L12 7.5L18 8L13.5 12L15 18L10 15L5 18L6.5 12L2 8L8 7.5L10 2Z" fill="currentColor" opacity="0.6" />
-                      </svg>
+              {/* === LOCKED STATE: Not paid === */}
+              {!hasAccess && (
+                <div className="relative">
+                  {/* Blurred preview content */}
+                  <div className="select-none pointer-events-none" style={{ filter: 'blur(6px)', opacity: 0.4 }}>
+                    <div className="space-y-4">
+                      <p className="text-sm text-[#e0d5c1] leading-relaxed">
+                        你的综合财富潜力评分为 {assessment.totalScore} 分，属于{assessment.gradeName}级别。
+                        在九宫格的九个维度中，你有 {nineGrid.allCells.filter(c => c.rating === 'S' || c.rating === 'A').length} 个维度达到了优秀以上水平，
+                        这意味着你在财富积累方面具有明显的先天优势和后天发展空间......
+                      </p>
+                      <p className="text-sm text-[#e0d5c1] leading-relaxed">
+                        从赚钱渠道来看，你最适合通过以下方式实现财富增长：第一，利用你的{nineGrid.allCells[0]?.name || '核心优势'}，
+                        在相关领域深耕细作；第二，通过人脉经营和资源整合，撬动更大的财富杠杆......
+                      </p>
+                      <h3 className="text-base font-medium text-[#e8dcc8] mt-6">你的人生财富时间表</h3>
+                      <p className="text-sm text-[#e0d5c1] leading-relaxed">
+                        根据你的出生数据分析，你的财富积累将呈现明显的阶段性特征。在25-30岁期间，
+                        你将迎来第一个重要的财务转折点，这个阶段最关键的是......
+                      </p>
                     </div>
                   </div>
-                  <p className="text-[#e0d5c1] text-sm font-medium mb-1" style={{ fontFamily: 'var(--font-display)' }}>AI 正在为你撰写专属报告</p>
-                  <p className="text-[#6b6358] text-xs">结合你的财富人格和九宫格数据，深度分析每个人生阶段...</p>
+
+                  {/* Paywall overlay */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-center max-w-sm">
+                      {/* Lock icon */}
+                      <motion.div
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ duration: 0.4 }}
+                        className="w-16 h-16 mx-auto mb-4 border-2 border-[#b8963e]/40 rounded-full flex items-center justify-center bg-[#1c1f26]/90"
+                      >
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" className="text-[#b8963e]">
+                          <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" strokeWidth="1.5" />
+                          <path d="M7 11V7C7 4.23858 9.23858 2 12 2C14.7614 2 17 4.23858 17 7V11" stroke="currentColor" strokeWidth="1.5" />
+                          <circle cx="12" cy="16.5" r="1.5" fill="currentColor" />
+                        </svg>
+                      </motion.div>
+
+                      <h4 className="text-lg font-bold text-[#e8dcc8] mb-2" style={{ fontFamily: 'var(--font-display)' }}>
+                        解锁完整 AI 深度解读
+                      </h4>
+                      <p className="text-sm text-[#8a8070] mb-1 leading-relaxed">
+                        包含：财富基因画像 · 赚钱渠道分析 · 人生财富时间表 · 三条铁律
+                      </p>
+                      <p className="text-xs text-[#6b6358] mb-6">
+                        由 AI 根据你的九宫格数据量身定制，每份报告独一无二
+                      </p>
+
+                      {/* Price + CTA */}
+                      <div className="mb-4">
+                        <span className="text-3xl font-bold text-[#b8963e]" style={{ fontFamily: 'var(--font-display)' }}>$2.99</span>
+                        <span className="text-sm text-[#8a8070] ml-2">一次付费 · 永久查看</span>
+                      </div>
+
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={handleUnlock}
+                        disabled={checkoutMutation.isPending}
+                        className="group relative inline-flex items-center gap-2 px-8 py-3 border border-[#b8963e]/60 bg-[#b8963e]/15 text-[#e8dcc8] tracking-wider transition-all duration-300 hover:bg-[#b8963e]/25 hover:border-[#b8963e] disabled:opacity-50"
+                        style={{ fontFamily: 'var(--font-display)' }}
+                      >
+                        {checkoutMutation.isPending ? (
+                          <span>正在跳转支付...</span>
+                        ) : !isAuthenticated ? (
+                          <>
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-[#b8963e]">
+                              <path d="M8 1C4.13 1 1 4.13 1 8s3.13 7 7 7 7-3.13 7-7-3.13-7-7-7zm0 2.5a2 2 0 110 4 2 2 0 010-4zm0 9.5a5.5 5.5 0 01-4.24-2c.02-1.4 2.83-2.17 4.24-2.17s4.22.77 4.24 2.17A5.5 5.5 0 018 13z" fill="currentColor" />
+                            </svg>
+                            <span>登录后解锁报告</span>
+                          </>
+                        ) : (
+                          <>
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-[#b8963e]">
+                              <path d="M8 1L10 6L15 6.5L11.5 10L12.5 15L8 12.5L3.5 15L4.5 10L1 6.5L6 6L8 1Z" fill="currentColor" />
+                            </svg>
+                            <span>立即解锁完整报告</span>
+                          </>
+                        )}
+                        {/* Corner decorations */}
+                        <span className="absolute top-0 left-0 w-2 h-2 border-t border-l border-[#b8963e]" />
+                        <span className="absolute top-0 right-0 w-2 h-2 border-t border-r border-[#b8963e]" />
+                        <span className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-[#b8963e]" />
+                        <span className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-[#b8963e]" />
+                      </motion.button>
+
+                      {!isAuthenticated && (
+                        <p className="text-[10px] text-[#6b6358] mt-3">
+                          需要先登录才能购买和查看报告
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
 
-              {error && (
-                <div className="text-center py-12">
-                  <p className="text-[#c47830] text-sm mb-4">{error}</p>
-                  <button onClick={handleRegenerate} className="text-sm text-[#b8963e] border border-[#b8963e]/30 px-5 py-2 hover:bg-[#b8963e]/10 transition-colors">
-                    点击重试
-                  </button>
-                </div>
-              )}
+              {/* === UNLOCKED STATE: Paid === */}
+              {hasAccess && (
+                <>
+                  {/* Regenerate button */}
+                  {report && !isGenerating && (
+                    <div className="flex justify-end mb-4">
+                      <button onClick={handleRegenerate} className="text-xs text-[#8a8070] hover:text-[#b8963e] transition-colors flex items-center gap-1.5 px-3 py-1.5 border border-[#b8963e]/15 hover:border-[#b8963e]/30">
+                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 7C1 3.68 3.68 1 7 1C10.32 1 13 3.68 13 7C13 10.32 10.32 13 7 13" stroke="currentColor" strokeWidth="1.2" /><path d="M1 7L3 9M1 7L3 5" stroke="currentColor" strokeWidth="1.2" /></svg>
+                        换个角度重新解读
+                      </button>
+                    </div>
+                  )}
 
-              {report && !isGenerating && (
-                <div className="prose-custom">
-                  <Streamdown>{report}</Streamdown>
-                </div>
+                  {isGenerating && (
+                    <div className="flex flex-col items-center justify-center py-16">
+                      <div className="relative w-16 h-16 mb-6">
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+                          className="absolute inset-0 border-2 border-[#b8963e]/10 border-t-[#b8963e]/60 rounded-full"
+                        />
+                        <motion.div
+                          animate={{ rotate: -360 }}
+                          transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                          className="absolute inset-2 border border-[#b8963e]/10 border-b-[#b8963e]/40 rounded-full"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="text-[#b8963e]">
+                            <path d="M10 2L12 7.5L18 8L13.5 12L15 18L10 15L5 18L6.5 12L2 8L8 7.5L10 2Z" fill="currentColor" opacity="0.6" />
+                          </svg>
+                        </div>
+                      </div>
+                      <p className="text-[#e0d5c1] text-sm font-medium mb-1" style={{ fontFamily: 'var(--font-display)' }}>AI 正在为你撰写专属报告</p>
+                      <p className="text-[#6b6358] text-xs">结合你的财富人格和九宫格数据，深度分析每个人生阶段...</p>
+                    </div>
+                  )}
+
+                  {error && (
+                    <div className="text-center py-12">
+                      <p className="text-[#c47830] text-sm mb-4">{error}</p>
+                      <button onClick={handleRegenerate} className="text-sm text-[#b8963e] border border-[#b8963e]/30 px-5 py-2 hover:bg-[#b8963e]/10 transition-colors">
+                        点击重试
+                      </button>
+                    </div>
+                  )}
+
+                  {report && !isGenerating && (
+                    <div className="prose-custom">
+                      <Streamdown>{report}</Streamdown>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
-            {/* Bottom decorative bar */}
             <div className="h-px bg-gradient-to-r from-transparent via-[#b8963e]/20 to-transparent" />
           </div>
         </motion.div>
@@ -584,7 +734,6 @@ function BadgesFullSection({ assessment }: { assessment: WealthAssessment }) {
                 <div className="text-[9px]" style={{ color: badge.unlocked ? badge.rarityColor : '#555' }}>
                   {getRarityName(badge.rarity)}
                 </div>
-                {/* Tooltip on hover */}
                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-40 p-2 bg-[#252830] border border-[#b8963e]/20 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
                   <p className="text-xs text-[#e0d5c1] mb-1">{badge.name}</p>
                   <p className="text-[10px] text-[#8a8070] leading-relaxed">

@@ -1,8 +1,9 @@
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router } from "./_core/trpc";
+import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { invokeLLM } from "./_core/llm";
+import { createCheckoutSession, hasReportAccess } from "./stripe";
 import { z } from "zod";
 
 export const appRouter = router({
@@ -15,6 +16,29 @@ export const appRouter = router({
       return {
         success: true,
       } as const;
+    }),
+  }),
+
+  payment: router({
+    /** Create a Stripe checkout session for report unlock */
+    createCheckout: protectedProcedure
+      .input(z.object({
+        origin: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const result = await createCheckoutSession({
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+          userName: ctx.user.name,
+          origin: input.origin,
+        });
+        return result;
+      }),
+
+    /** Check if current user has purchased report access */
+    hasAccess: protectedProcedure.query(async ({ ctx }) => {
+      const access = await hasReportAccess(ctx.user.id);
+      return { hasAccess: access };
     }),
   }),
 
